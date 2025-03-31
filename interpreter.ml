@@ -33,17 +33,15 @@ let matrix_dims_equal m1 m2 =
   (let cols1 = List.length (List.hd m1) in
    let cols2 = List.length (List.hd m2) in
    cols1 = cols2)
-(* 2. Environment Management *)
+   
+(*Enviournment*)
 type environment = {
   parent: environment option;
   symbols: (string, value) Hashtbl.t;
 }
-
-
-
 let create_env parent = 
   { parent; symbols = Hashtbl.create 16 }
-  
+ 
 let rec lookup_env env id =
   match Hashtbl.find_opt env.symbols id with
   | Some v -> v
@@ -69,8 +67,8 @@ let debug_env env =
       Printf.printf "- %s : %s\n" k (string_of_value v)  (* Changed from Evaluator *)
     ) env.symbols 
 ;;
-          
-let rec helper_update_env env var_name new_value =
+
+let rec check_and_update_env env var_name new_value =
   match env with
   | Some env ->
     (*if present in table and of same type as new_value*)
@@ -84,12 +82,18 @@ let rec helper_update_env env var_name new_value =
         | IntMatrix _, IntMatrix _
         | FloatMatrix _, FloatMatrix _
         | BoolVal _, BoolVal _ -> Hashtbl.replace env.symbols var_name new_value; true
-        | _ -> raise (RuntimeError ( "Redeclaration error: Variable '" ^ var_name ^ "' redeclared with type"^string_of_value new_value^" (original : "^ string_of_value current_value^") 😭"))
+        | _ -> raise (RuntimeError ( "Redeclaration error: Variable '" ^ var_name ^ "' redeclared with type"^string_of_value current_value^" (original : "^ string_of_value new_value^") 😭"))
       ) else
-        helper_update_env env.parent var_name new_value
+        check_and_update_env env.parent var_name new_value
   | None -> false (* Variable not found in hierarchy *)
-
-  let update_environment_with_common_elements parent_env new_env =
+  
+  let update_env env id value =
+    let temp = check_and_update_env env.parent id value in
+    (match temp with 
+    |true -> ()
+    |false ->Hashtbl.add env.symbols id value)
+    
+  (* let update_environment_with_common_elements parent_env new_env =
     (* Iterate through all variables in new environment *)
     Hashtbl.iter (fun var_name new_value ->
       (* Update variable in parent hierarchy if exists *)
@@ -100,7 +104,7 @@ let rec helper_update_env env var_name new_value =
     (* Return original parent environment *)
     match parent_env with
     | Some env -> env
-    | None -> new_env
+    | None -> new_env *)
 
 let add_values v1 v2 =
   match (v1, v2) with
@@ -362,8 +366,6 @@ let rec eval_expr env = function
   | Mag e -> magnitude (eval_expr env e)
   | Angle (e1, e2) -> angle (eval_expr env e1) (eval_expr env e2)
   | IsZero e -> is_zero (eval_expr env e)
-  | Cond (cond, e1, e2) ->
-      if eval_bool env cond then eval_expr env e1 else eval_expr env e2
   | Transpose e ->let value = eval_expr env e in transpose_value value
   | Mult (e1, e2) -> matrix_mult (eval_expr env e1) (eval_expr env e2)
   | Det e -> determinant (eval_expr env e)
@@ -376,8 +378,6 @@ let rec eval_expr env = function
   | Gt (e1, e2) -> gt (eval_expr env e1) (eval_expr env e2)
   | Le (e1, e2) -> le (eval_expr env e1) (eval_expr env e2)
   | Ge (e1, e2) -> ge (eval_expr env e1) (eval_expr env e2)
-  | Input prompt -> input_value prompt
-  | Print msg ->  BoolVal true 
 
 and eval_bool env e =
   match eval_expr env e with
@@ -387,11 +387,7 @@ and eval_bool env e =
 let rec execute_stmt env = function
   | Assign (id, expr) ->
       let value = eval_expr env expr in
-      let temp = helper_update_env env.parent id value in
-      (match temp with
-       true -> ()
-      | false -> update_env env id value
-        );
+      ignore(update_env env id value);
       env
   | Seq stmts -> 
         (* Create a new environment for the sequence of statements *)
@@ -400,13 +396,13 @@ let rec execute_stmt env = function
         (* Update the parent environment with the new environment *) 
       (* let _ = debug_env env in   *)
       (* let _ = debug_env new_env in *)
-      update_environment_with_common_elements new_env.parent new_env
+      env
   | If (cond, then_b, else_b) ->
       let branch_env = create_env (Some env) in 
       if eval_bool env cond 
       then execute_stmt branch_env then_b |> ignore
       else execute_stmt branch_env else_b |> ignore;
-      update_environment_with_common_elements branch_env.parent branch_env 
+      env
   | While (cond, body) ->
       let loop_env = create_env (Some env) in 
       while eval_bool loop_env cond do
@@ -414,7 +410,7 @@ let rec execute_stmt env = function
         execute_stmt loop_env body |> ignore; 
       done;
       (* loop_env *)
-      update_environment_with_common_elements loop_env.parent loop_env
+      env
   | For (var, start_expr, cond_expr, step_val, body) ->
         (* Evaluate initial value *)
       let start_val = eval_expr env start_expr in 
@@ -464,7 +460,7 @@ let rec execute_stmt env = function
       in
     
       loop start_val;
-      update_environment_with_common_elements loop_env.parent loop_env
+      env
 
   |VectorDecl (name, size, e) ->
       let value = eval_expr env e in
@@ -473,7 +469,7 @@ let rec execute_stmt env = function
         | FloatVector v when List.length v = size -> value
         | _ -> raise (RuntimeError "Vector declaration size mismatch")
       in
-      update_env env name vector;
+      ignore(update_env env name vector);
       env; (* Update the environment with the new vector *)
   | MatrixDecl (name, rows, cols, e) ->
       let value = eval_expr env e in
@@ -482,7 +478,7 @@ let rec execute_stmt env = function
         | FloatMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
         | _ -> raise (RuntimeError "Matrix declaration size mismatch")
       in
-      update_env env name matrix;
+      ignore(update_env env name matrix);
       env; (* Update the environment with the new matrix *)
     
   | PrintStmt e ->

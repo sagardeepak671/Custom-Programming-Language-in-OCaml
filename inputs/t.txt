@@ -1,15 +1,15 @@
-a:=1-(-1);
-b:=-1;
-c:=1-1;
-d:=1-2; 
-e:=abs(d);
-Print(true*false); 
- {
-    a:=3;
-    {
-        v:=32;
-        {
-            a:=true;
-        };
-    };
- };
+a:=true;
+ans:=0;
+for(i:=3,i<10,1){
+    ans:=ans+1;
+    an2:=false;
+    Print(ans);
+
+};
+intvector a:= 2[3,3];
+{
+    temp :=a;
+    intvector v:= 2 [1,2];
+    a:=false;
+};
+

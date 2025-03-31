@@ -24,12 +24,9 @@ type expr =
   | DotProd of expr * expr    (* Dot product *)
   | Mag of expr               (* Magnitude *)
   | Angle of expr * expr      (* Angle *)
-  | IsZero of expr            (* IsZero check *)
-  | Cond of expr * expr * expr(* If-then-else *)
+  | IsZero of expr            (* IsZero check *) 
   | Var of string             (* Variable *)
   | Inv of expr             (* Negation/inversion *)
-  | Input of string option    (* Input command *)
-  | Print of string           (* Print command *)
   | Transpose of expr         (* Transpose *)
   | Mult of expr * expr       (* Matrix multiplication *)
   | Det of expr               (* Determinant *)
@@ -40,8 +37,6 @@ type expr =
   | Gt of expr * expr         (* Greater than comparison *)
   | Le of expr * expr         (* Less than or equal comparison *)
   | Ge of expr * expr         (* Greater than or equal comparison *)
-  (* | VectorDecl of string * int * expr (* Vector declaration with name, size, and values *)
-  | MatrixDecl of string * int * int * expr Matrix declaration with name, rows, cols, and values *)
 type stmt = 
     Assign of string * expr          (* x := expr *)
   | Seq of stmt list                 (* sequence of statements *)
@@ -53,9 +48,7 @@ type stmt =
   | ExprStmt of expr                 (* Expression statement *)
   | VectorDecl of string * int * expr (* Vector statement *)
   | MatrixDecl of string * int * int * expr (* Matrix statement *)
-
-  type program = stmt
-
+type program = stmt
 (* printing the AST*)
 let rec string_of_expr e =
   match e with
@@ -75,11 +68,7 @@ let rec string_of_expr e =
   | Mag e -> "Mag(" ^ string_of_expr e ^ ")"
   | Angle(e1,e2) -> "Angle(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | IsZero e -> "IsZero(" ^ string_of_expr e ^ ")"
-  | Cond(e1,e2,e3) -> "Cond(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ", " ^ string_of_expr e3 ^ ")"
   | Var s -> "Var(" ^ s ^ ")"
-  | Input(Some s) -> "Input(" ^ s ^ ")"
-  | Input None -> "Input()"
-  | Print s -> "Print(" ^ s ^ ")"
   | Transpose e -> "Transpose(" ^ string_of_expr e ^ ")"
   | Mult(e1,e2) -> "Mult(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Det e -> "Det(" ^ string_of_expr e ^ ")"
@@ -118,6 +107,5 @@ let rec string_of_stmt ?(indent=0) s =
   | MatrixDecl(name, rows, cols, e) ->spaces ^ "MatrixDecl(" ^ name ^ ", " ^ string_of_int rows ^ ", " ^string_of_int cols ^ ", " ^ string_of_expr e ^ ")"
 
 let string_of_ast p = string_of_stmt p
-
 let print_AST ast =
   Printf.printf "<--Parsed AST-->✅🥳\n%s\n" (string_of_ast ast)

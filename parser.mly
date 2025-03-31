@@ -82,8 +82,7 @@ expr:
   | arith_expr       { $1 }
   | comp_expr        { $1 }
   | logic_expr       { $1 }
-  | func_expr        { $1 }
-  | conditional_expr { $1 }  
+  | func_expr        { $1 } 
   ;
 simple_expr:
     TRUE_VAL                   { T }
@@ -173,9 +172,5 @@ func_expr:
   | expr SCALE_VECTOR expr                       { ScalProd ($1, $3) }
   | expr SCALE_MATRIX expr                       { ScalProd ($1, $3) }
   | expr MULTIPLY_MATRIX expr                    { Mult ($1, $3) }
-  ;
-conditional_expr:
-    IF expr THEN expr ELSE expr                   { Cond ($2, $4, $6) }
-  | IF expr THEN expr %prec LOWER_THAN_ELSE       { Cond ($2, $4, ConstS 0.0) }
   ;
 %%

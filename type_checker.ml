@@ -29,30 +29,18 @@ module TypeChecker = struct
       else match env.parent with
       | Some parent_env -> lookup_var parent_env var
       | None -> raise (Undefined_variable ("Undefined variable: " ^ var))
-      
-      (* 
-  let add_var env var typ = 
-    match Hashtbl.find_opt env.symbol_table var with
-    | Some existing_type when existing_type <> typ ->
-        raise (Redeclaration_error (
-          Printf.sprintf "Variable '%s' redeclared with type %s (original: %s)"
-            var 
-            (string_of_type typ) (string_of_type existing_type)
-        ))
-    | Some _ -> ()  
-    | None -> Hashtbl.add env.symbol_table var typ *)
 
-    let rec add_var_help env var =
+    let rec check_get_var_type env var =
       match Hashtbl.find_opt env.symbol_table var with
       | Some typ -> Some typ
       | None -> (
           match env.parent with
-          | Some parent_env -> add_var_help parent_env var
+          | Some parent_env -> check_get_var_type parent_env var
           | None -> None
         )
     
     let add_var env var typ =
-      match add_var_help env var with
+      match check_get_var_type env var with
       | Some existing_type when existing_type <> typ ->
           raise (Redeclaration_error (
             Printf.sprintf "Variable '%s' redeclared with type %s (original: %s)"
@@ -105,62 +93,65 @@ module TypeChecker = struct
          | (Scalar_Float, Vector_Float d) | (Vector_Float d, Scalar_Float) -> Vector_Float d
          | (Scalar_Int, Matrix_Int (r,c)) | (Matrix_Int (r,c), Scalar_Int) -> Matrix_Int (r,c)
          | (Scalar_Float, Matrix_Float (r,c)) | (Matrix_Float (r,c), Scalar_Float) -> Matrix_Float (r,c)
-         | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Int
-          | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
-          | (Matrix_Int (r1,c1), Matrix_Int (r2,c2)) when r1 = r2 && c1 = c2 -> Scalar_Int
-          | (Matrix_Float (r1,c1), Matrix_Float (r2,c2)) when r1 = r2 && c1 = c2 -> Scalar_Float
-
-         | _ -> raise (Type_error "Invalid scalar multiplication😭"))
+         | _ -> raise (Type_error ("Invalid scalar multiplication: incompatible types " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")) )
     | DotProd(e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
         (match (t1, t2) with
          | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Int
          | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
-         | _ -> raise (Type_error "Invalid dot product dimensions"))
+         | _ -> raise (Type_error ("Invalid dot product: incompatible types " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")) )
     | Mag e ->
-        (match type_of_expr env e with
-         | Vector_Int _ | Vector_Float _ -> Scalar_Float
-         | Scalar_Int -> Scalar_Int
-         | Scalar_Float -> Scalar_Float
+        let t1 = type_of_expr env e in
+        (match t1 with
+         | Vector_Int _ | Vector_Float _ |Scalar_Float-> Scalar_Float
+         | Scalar_Int -> Scalar_Int 
          | Bool -> Bool
-         | _ -> raise (Type_error "Magnitude requires vector"))
+         | _ -> raise (Type_error ("Invalid magnitude: incompatible type " ^ string_of_type t1 ^ "😭")))
+    | IsZero e ->
+        let _ = type_of_expr env e in
+        Bool
+    | Angle (e1, e2) ->
+      let t1 = type_of_expr env e1 in
+      let t2 = type_of_expr env e2 in
+      (match (t1, t2) with
+      | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Float
+      | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
+      | _ -> raise (Type_error ("Invalid angle dimensions: cannot compute angle between " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")))
+    
+    | Inv e -> type_of_expr env e 
+    
     | Eq(e1, e2) | Neq(e1, e2) | Lt(e1, e2) | Gt(e1, e2) | Le(e1, e2) | Ge(e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
         if t1 = t2 then Bool
-        else raise (Type_error ("Cannot compare " ^ string_of_type t1 ^ " and " ^ string_of_type t2))
-    | Cond(c, t, f) ->
-        if type_of_expr env c <> Bool then
-          raise (Type_error "Condition must be boolean");
-        let t_type = type_of_expr env t in
-        let f_type = type_of_expr env f in
-        if t_type <> f_type then
-          raise (Type_error "Branches must have same type");
-        t_type
+        else raise (Type_error ("Cannot compare " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭"))
     | Transpose e ->
-        (match type_of_expr env e with
-         | Matrix_Int (r,c) -> Matrix_Int (c,r)
-         | Matrix_Float (r,c) -> Matrix_Float (c,r)
-         | _ -> raise (Type_error "Transpose requires matrix"))
+      let t = type_of_expr env e in
+      (match t with
+      | Matrix_Int (r, c) -> Matrix_Int (c, r)
+      | Matrix_Float (r, c) -> Matrix_Float (c, r)
+      | _ -> raise (Type_error ("Cannot transpose type " ^ string_of_type t ^ "😭")))
     | Mult(e1, e2) ->
-        (match (type_of_expr env e1, type_of_expr env e2) with
-         | (Matrix_Int (_,c1), Matrix_Int (r2,_)) when c1 = r2 -> Matrix_Int (r2, c1)
-         | (Matrix_Float (_,c1), Matrix_Float (r2,_)) when c1 = r2 -> Matrix_Float (r2, c1)
-         | _ -> raise (Type_error "Matrix multiplication dimension mismatch"))
-    | Inv e -> type_of_expr env e
-    | Angle (e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
         (match (t1, t2) with
-        | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Float
-        | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
-        | _ -> raise (Type_error ("Invalid angle dimensions: cannot compute angle between " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")))
-    
-    | IsZero e ->
-        let _ = type_of_expr env e in
-        Bool
-    | _ -> failwith "Unimplemented expression type "
+         | (Matrix_Int (_,c1), Matrix_Int (r2,_)) when c1 = r2 -> Matrix_Int (r2, c1)
+         | (Matrix_Float (_,c1), Matrix_Float (r2,_)) when c1 = r2 -> Matrix_Float (r2, c1)
+         | _ -> raise (Type_error ("Invaild Matrix Muliplication: incompatible types " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")))
+    | Det e ->
+      let t = type_of_expr env e in
+      (match t with
+       | Matrix_Int (r,c) when r = c -> Scalar_Int
+       | Matrix_Float (r,c) when r = c -> Scalar_Float
+       | _ -> raise (Type_error ("Invalid Determinant: incompatible type " ^ string_of_type t ^ "😭")))
+    | Inverse e ->
+      let t = type_of_expr env e in
+      (match t with
+       | Matrix_Int (r, c) when r = c -> Matrix_Int (r, c)
+       | Matrix_Float (r, c) when r = c -> Matrix_Float (r, c)
+       | _ -> raise (Type_error ("Invalid Inverse: incompatible type " ^ string_of_type t ^ "😭")))
+ 
 
   let rec typecheck_stmt env = function
     | Assign(var, expr) ->
@@ -172,7 +163,6 @@ module TypeChecker = struct
         let block_env = create_env (Some env) in
         let _ = List.fold_left typecheck_stmt block_env stmts in
         env
-
     | If(cond, then_branch, else_branch) ->
         if type_of_expr env cond <> Bool then
           raise (Type_error "If condition must be boolean");
@@ -190,15 +180,7 @@ module TypeChecker = struct
         env
 
     | For(var, start, stop, step, body) ->
-
-      (try 
-       let var_type = lookup_var env var in
-       if var_type <> Scalar_Int then
-         raise (Type_error "For loop variable must be integer type")
-     with Undefined_variable _ -> ()
-    );
-
-            (* 1. Check start/step in PARENT scope *)
+      (* 1. Check start/step in PARENT scope *)
         if type_of_expr env start <> Scalar_Int then
           raise (Type_error "For loop start must be integer");
         if type_of_expr env step <> Scalar_Int then
@@ -210,14 +192,8 @@ module TypeChecker = struct
             (* 4. Check condition/body in LOOP SCOPE *)
         if type_of_expr loop_env stop <> Bool then
           raise (Type_error "For loop condition must be boolean");
-        ignore (typecheck_stmt loop_env body);
-            (* 5. Return to PARENT scope *)
+        ignore (typecheck_stmt loop_env body); 
         env
-
-        (* | Assign(var, expr) ->
-        let expr_type = type_of_expr env expr in
-        add_var env var expr_type; 
-        env*)
 
     | VectorDecl(var, dim, init) ->
         let init_type = type_of_expr env init in
@@ -264,6 +240,5 @@ module TypeChecker = struct
       | Some p -> print_help p (indent ^ "  ")
       | None -> ()
     in
-    print_help env ""
-      
+    print_help env ""   
 end
