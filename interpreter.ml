@@ -73,24 +73,34 @@ let debug_env env =
 let rec helper_update_env env var_name new_value =
   match env with
   | Some env ->
-      if Hashtbl.mem env.symbols var_name then
-        Hashtbl.replace env.symbols var_name new_value
-      else
+    (*if present in table and of same type as new_value*)
+      if Hashtbl.mem env.symbols var_name then (
+        let current_value = Hashtbl.find env.symbols var_name in
+        match current_value, new_value with
+        | IntVal _, IntVal _
+        | FloatVal _, FloatVal _
+        | IntVector _, IntVector _
+        | FloatVector _, FloatVector _
+        | IntMatrix _, IntMatrix _
+        | FloatMatrix _, FloatMatrix _
+        | BoolVal _, BoolVal _ -> Hashtbl.replace env.symbols var_name new_value; true
+        | _ -> raise (RuntimeError ( "Redeclaration error: Variable '" ^ var_name ^ "' redeclared with type"^string_of_value new_value^" (original : "^ string_of_value current_value^") 😭"))
+      ) else
         helper_update_env env.parent var_name new_value
-  | None -> () (* Variable not found in hierarchy *)
+  | None -> false (* Variable not found in hierarchy *)
 
   let update_environment_with_common_elements parent_env new_env =
     (* Iterate through all variables in new environment *)
     Hashtbl.iter (fun var_name new_value ->
       (* Update variable in parent hierarchy if exists *)
-      helper_update_env parent_env var_name new_value
+        ignore (helper_update_env parent_env var_name new_value)
+      (* let _ = helper_update_env parent_env var_name new_value |> ignore *)
     ) new_env.symbols;
     
     (* Return original parent environment *)
     match parent_env with
     | Some env -> env
     | None -> new_env
-  
 
 let add_values v1 v2 =
   match (v1, v2) with
@@ -104,21 +114,16 @@ let add_values v1 v2 =
       IntMatrix (List.map2 (List.map2 (+)) a b)
   | FloatMatrix a, FloatMatrix b when matrix_dims_equal a b ->
       FloatMatrix (List.map2 (List.map2 (+.)) a b)
-  | _ -> raise (RuntimeError "Invalid addition operands")
+  | _ -> raise (RuntimeError ("Invalid addition operands: cannot add " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ "😭"))
       
 let inv_value = function
   | IntVal i -> IntVal (-i)
   | FloatVal f -> FloatVal (-.f)
   | IntVector v -> IntVector (List.map (( * ) (-1)) v)
   | FloatVector v -> FloatVector (List.map (( *. ) (-1.0)) v)
-  | _ -> raise (RuntimeError "Invalid inversion operand")
-      
-      
-      (* 4. Core Evaluation Functions *)
-      
-      (* 5. Mathematical Operations *)
-      
-      
+  | IntMatrix m -> IntMatrix (List.map (List.map (( * ) (-1))) m)
+  | FloatMatrix m -> FloatMatrix (List.map (List.map (( *. ) (-1.0))) m)
+  | BoolVal b -> BoolVal (not b)      
       
 let scal_prod v1 v2 =
   match (v1, v2) with
@@ -144,14 +149,15 @@ let dot_prod v1 v2 =
       FloatVal (List.fold_left2 (fun acc a b -> acc +. a *. b) 0.0 v1 v2)
   | _ -> raise (RuntimeError "Invalid dot product operands")
     
-let magnitude = function
-  | IntVector v -> 
-      FloatVal (sqrt (float_of_int (List.fold_left (fun acc x -> acc + x * x) 0 v)))
-  | FloatVector v ->
-      FloatVal (sqrt (List.fold_left (fun acc x -> acc +. x *. x) 0.0 v))
-  | _ -> raise (RuntimeError "Magnitude requires a vector")
-        
-        (* 7. Matrix Operations *)
+let magnitude v = 
+  match v with 
+  | IntVector v -> FloatVal (sqrt (float_of_int (List.fold_left (fun acc x -> acc + x * x) 0 v)))
+  | FloatVector v -> FloatVal (sqrt (List.fold_left (fun acc x -> acc +. x *. x) 0.0 v))
+  | IntVal i -> IntVal (-1*i) 
+  | FloatVal f -> FloatVal (-1.0*.f)  
+  | BoolVal b -> BoolVal true (* Assuming magnitude of boolean is true *)
+  | _ -> raise (RuntimeError ("Cannot find magnitude of " ^ string_of_value v^" 😭"))
+  
 let rec transpose matrix =
   match matrix with
   | [] | [] :: _ -> [] (* Return empty list if the input is empty or irregular *)
@@ -220,6 +226,7 @@ let determinant = function
   | IntMatrix m -> IntVal (MatrixOps.det_int m)
   | FloatMatrix m -> FloatVal (MatrixOps.det_float m)
   | _ -> raise (RuntimeError "Determinant requires a matrix")
+
 let angle v1 v2 =
   match (v1, v2) with
   | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->
@@ -227,39 +234,45 @@ let angle v1 v2 =
         | IntVal d -> float_of_int d
         | _ -> raise (RuntimeError "Dot product must return an integer value")
       in
-      let mag1 = match magnitude (IntVector v1) with
+      let abs1 = match magnitude (IntVector v1) with
         | FloatVal m -> m
         | _ -> raise (RuntimeError "Magnitude must return a float value")
       in
-      let mag2 = match magnitude (IntVector v2) with
+      let abs2 = match magnitude (IntVector v2) with
         | FloatVal m -> m
         | _ -> raise (RuntimeError "Magnitude must return a float value")
       in
-      FloatVal (acos (dot /. (mag1 *. mag2)))
+      if abs_float abs1 < 1e-6 || abs_float abs2 < 1e-6 then
+        raise (RuntimeError ("Cannot compute angle with zero magnitude: " ^ string_of_value (IntVector v1) ^ " and " ^ string_of_value (IntVector v2) ^ " 😭"))
+      else
+      FloatVal (acos (dot /. (abs1 *. abs2)))
   | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->
       let dot = match dot_prod (FloatVector v1) (FloatVector v2) with
         | FloatVal d -> d
         | _ -> raise (RuntimeError "Dot product must return a float value")
       in
-      let mag1 = match magnitude (FloatVector v1) with
+      let abs1 = match magnitude (FloatVector v1) with
         | FloatVal m -> m
         | _ -> raise (RuntimeError "Magnitude must return a float value")
       in
-      let mag2 = match magnitude (FloatVector v2) with
+      let abs2 = match magnitude (FloatVector v2) with
         | FloatVal m -> m
         | _ -> raise (RuntimeError "Magnitude must return a float value")
       in
-      FloatVal (acos (dot /. (mag1 *. mag2)))
-  | _ -> raise (RuntimeError "Angle requires two vectors")
+      if abs_float abs1 < 1e-6 || abs_float abs2 < 1e-6 then
+        raise (RuntimeError ("Cannot compute angle with zero magnitude: " ^ string_of_value (FloatVector v1) ^ " and " ^ string_of_value (FloatVector v2) ^ " 😭"))
+      else
+      FloatVal (acos (dot /. (abs1 *. abs2)))
+  | _ -> raise (RuntimeError ("Angle requires two vectors: cannot compute angle between " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let is_zero = function
   | IntVal i -> BoolVal (i = 0)
-  | FloatVal f -> BoolVal (f = 0.0)
+  | FloatVal f -> BoolVal (abs_float f < 1e-6)
   | IntVector v -> BoolVal (List.for_all ((=) 0) v)
-  | FloatVector v -> BoolVal (List.for_all ((=) 0.0) v)
+  | FloatVector v -> BoolVal (List.for_all (fun x -> abs_float x < 1e-6) v)
   | IntMatrix m -> BoolVal (List.for_all (List.for_all ((=) 0)) m)
-  | FloatMatrix m -> BoolVal (List.for_all (List.for_all ((=) 0.0)) m)
-  | BoolVal b -> BoolVal (not b) 
+  | FloatMatrix m -> BoolVal (List.for_all (List.for_all (fun x -> abs_float x < 1e-6)) m)
+  | BoolVal b -> BoolVal (not b)
   
 let matrix_inverse mat =
   match mat with
@@ -269,47 +282,61 @@ let eq v1 v2 =
   match (v1, v2) with
   | (BoolVal b1, BoolVal b2) -> BoolVal (b1 = b2)
   | (IntVal i1, IntVal i2) -> BoolVal (i1 = i2)
-  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 = f2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (abs_float (f1 -. f2) < 1e-6)
   | (IntVector v1, IntVector v2) -> BoolVal (v1 = v2)
-  | (FloatVector v1, FloatVector v2) -> BoolVal (v1 = v2)
+  | (FloatVector v1, FloatVector v2) -> 
+      BoolVal (List.for_all2 (fun a b -> abs_float (a -. b) < 1e-6) v1 v2)
   | (IntMatrix m1, IntMatrix m2) -> BoolVal (m1 = m2)
-  | (FloatMatrix m1, FloatMatrix m2) -> BoolVal (m1 = m2)
-  | _ -> raise (RuntimeError "Cannot compare different types")
+  | (FloatMatrix m1, FloatMatrix m2) -> 
+      BoolVal (List.for_all2 
+                 (fun row1 row2 -> 
+                    List.for_all2 (fun a b -> abs_float (a -. b) < 1e-6) row1 row2) 
+                 m1 m2)
+  | _ -> raise (RuntimeError ("Cannot compare different types for equality "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let neq v1 v2 = 
-  match eq v1 v2 with
-  | BoolVal b -> BoolVal (not b)
-  | _ -> raise (RuntimeError "Invalid inequality comparison")
+  match (v1, v2) with
+  | (BoolVal b1, BoolVal b2) -> BoolVal (b1 <> b2)
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 <> i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (abs_float (f1 -. f2) >= 1e-6)
+  | (IntVector v1, IntVector v2) -> BoolVal (v1 <> v2)
+  | (FloatVector v1, FloatVector v2) -> 
+      BoolVal (not (List.for_all2 (fun a b -> abs_float (a -. b) < 1e-6) v1 v2))
+  | (IntMatrix m1, IntMatrix m2) -> BoolVal (m1 <> m2)
+  | (FloatMatrix m1, FloatMatrix m2) -> 
+      BoolVal (not (List.for_all2 
+                      (fun row1 row2 -> 
+                         List.for_all2 (fun a b -> abs_float (a -. b) < 1e-6) row1 row2) 
+                      m1 m2))
+  | _ -> raise (RuntimeError ("Cannot compare different types for inequality "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let lt v1 v2 =
   match (v1, v2) with
   | (IntVal i1, IntVal i2) -> BoolVal (i1 < i2)
-  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 < f2)
-  | _ -> raise (RuntimeError "Operator < requires numeric scalars")
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f2 -. f1 > 1e-6)
+  | _ -> raise (RuntimeError ("Cannot compare less than for "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let gt v1 v2 =
   match (v1, v2) with
   | (IntVal i1, IntVal i2) -> BoolVal (i1 > i2)
-  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 > f2)
-  | _ -> raise (RuntimeError "Operator > requires numeric scalars")
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 -. f2 > 1e-6)
+  | _ -> raise (RuntimeError ("Cannot compare greater than for "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let le v1 v2 =
   match (v1, v2) with
   | (IntVal i1, IntVal i2) -> BoolVal (i1 <= i2)
-  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 <= f2)
-  | _ -> raise (RuntimeError "Operator <= requires numeric scalars")
-  
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1-. f2 < 1e-6)
+  | _ -> raise (RuntimeError ("Cannot compare less than equal to for "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
+ 
 let ge v1 v2 =
   match (v1, v2) with
   | (IntVal i1, IntVal i2) -> BoolVal (i1 >= i2)
-  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 >= f2)
-  | _ -> raise (RuntimeError "Operator >= requires numeric scalars")
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f2 -. f1 < 1e-6)
+  | _ -> raise (RuntimeError ("Cannot compare greater than equal to for "^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let input_value prompt = 
-    (*do later*)
-  IntVal 2;;
-let print_value prompt = 
-  IntVal 2;;
+    (**TODO*)
+  IntVal 2;; 
 
 let eval_mod e1 e2 =
   match (e1,e2) with
@@ -360,7 +387,11 @@ and eval_bool env e =
 let rec execute_stmt env = function
   | Assign (id, expr) ->
       let value = eval_expr env expr in
-      update_env env id value;
+      let temp = helper_update_env env.parent id value in
+      (match temp with
+       true -> ()
+      | false -> update_env env id value
+        );
       env
   | Seq stmts -> 
         (* Create a new environment for the sequence of statements *)
@@ -457,15 +488,13 @@ let rec execute_stmt env = function
   | PrintStmt e ->
       let value = eval_expr env e in
       print_endline (string_of_value value);
-      env;
-
-  
+      env;  
   | _ -> env  
 
 let execute_program program =
-  let gloabl_env = create_env None in 
+  let global_env = create_env None in 
   match program with
-  | Seq stmts -> List.fold_left execute_stmt gloabl_env stmts
+  | Seq stmts -> List.fold_left execute_stmt global_env stmts
   | _ -> raise (RuntimeError "Program must be a sequence of statements")
 
 let print_INTERPRETED_ENV env = 

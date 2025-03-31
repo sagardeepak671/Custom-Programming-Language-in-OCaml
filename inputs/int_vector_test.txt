@@ -1,0 +1,12 @@
+intvector a := 3 [1,-2,-3];
+Print(a);
+intvector b := 3 [1,43,3];
+intvector c := 4 [1,2,3,4];
+d := inv_vec(a);
+e := dotprod_vec(a,b);
+f := a*2; 
+g:= abs(a); 
+intvector h:= 3 [0,0,0];
+ang:= angle_vec(a,b);
+is_zer := is_zero(h);
+is_e1 := a==b;

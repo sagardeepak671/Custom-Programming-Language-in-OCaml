@@ -46,4 +46,4 @@ clean:
 .PHONY: all clean
 
 run:
-	./mydsl < ./inputs/t.txt > o.txt
+	./mydsl < ./inputs/t.txt

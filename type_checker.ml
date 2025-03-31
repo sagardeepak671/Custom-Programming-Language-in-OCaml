@@ -23,15 +23,15 @@ module TypeChecker = struct
     let create_env parent = 
     { symbol_table = Hashtbl.create 100; parent }
 
-  let rec lookup_var env var =
-    if Hashtbl.mem env.symbol_table var then
-      Hashtbl.find env.symbol_table var
-    else match env.parent with
+    let rec lookup_var env var =
+      if Hashtbl.mem env.symbol_table var then
+        Hashtbl.find env.symbol_table var
+      else match env.parent with
       | Some parent_env -> lookup_var parent_env var
       | None -> raise (Undefined_variable ("Undefined variable: " ^ var))
-
-  let add_var env var typ =
-    (* Check current scope only *)
+      
+      (* 
+  let add_var env var typ = 
     match Hashtbl.find_opt env.symbol_table var with
     | Some existing_type when existing_type <> typ ->
         raise (Redeclaration_error (
@@ -39,8 +39,27 @@ module TypeChecker = struct
             var 
             (string_of_type typ) (string_of_type existing_type)
         ))
-    | Some _ -> ()  (* Same type, no action *)
-    | None -> Hashtbl.add env.symbol_table var typ
+    | Some _ -> ()  
+    | None -> Hashtbl.add env.symbol_table var typ *)
+
+    let rec add_var_help env var =
+      match Hashtbl.find_opt env.symbol_table var with
+      | Some typ -> Some typ
+      | None -> (
+          match env.parent with
+          | Some parent_env -> add_var_help parent_env var
+          | None -> None
+        )
+    
+    let add_var env var typ =
+      match add_var_help env var with
+      | Some existing_type when existing_type <> typ ->
+          raise (Redeclaration_error (
+            Printf.sprintf "Variable '%s' redeclared with type %s (original: %s)"
+              var 
+              (string_of_type typ) (string_of_type existing_type)
+          ))
+      | _ -> Hashtbl.add env.symbol_table var typ
 
   let get_vector_dim = function
     | Vector_Int d | Vector_Float d -> d
@@ -69,12 +88,12 @@ module TypeChecker = struct
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
         if t1 = t2 then t1
-        else raise (Type_error ("Cannot add " ^ string_of_type t1 ^ " and " ^ string_of_type t2))
+        else raise (Type_error ("Cannot add " ^ string_of_type t1 ^ " and " ^ string_of_type t2^"😭"))
     | Mod(e1,e2)->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
         if t1 = Scalar_Int && t2 = Scalar_Int then Scalar_Int
-        else raise (Type_error ("Cannot mod " ^ string_of_type t1 ^ " and " ^ string_of_type t2))
+        else raise (Type_error ("Cannot mod " ^ string_of_type t1 ^ " and " ^ string_of_type t2^"😭"))
     | ScalProd(e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
@@ -91,7 +110,7 @@ module TypeChecker = struct
           | (Matrix_Int (r1,c1), Matrix_Int (r2,c2)) when r1 = r2 && c1 = c2 -> Scalar_Int
           | (Matrix_Float (r1,c1), Matrix_Float (r2,c2)) when r1 = r2 && c1 = c2 -> Scalar_Float
 
-         | _ -> raise (Type_error "Invalid scalar multiplication"))
+         | _ -> raise (Type_error "Invalid scalar multiplication😭"))
     | DotProd(e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in
@@ -102,6 +121,9 @@ module TypeChecker = struct
     | Mag e ->
         (match type_of_expr env e with
          | Vector_Int _ | Vector_Float _ -> Scalar_Float
+         | Scalar_Int -> Scalar_Int
+         | Scalar_Float -> Scalar_Float
+         | Bool -> Bool
          | _ -> raise (Type_error "Magnitude requires vector"))
     | Eq(e1, e2) | Neq(e1, e2) | Lt(e1, e2) | Gt(e1, e2) | Le(e1, e2) | Ge(e1, e2) ->
         let t1 = type_of_expr env e1 in
@@ -126,8 +148,19 @@ module TypeChecker = struct
          | (Matrix_Int (_,c1), Matrix_Int (r2,_)) when c1 = r2 -> Matrix_Int (r2, c1)
          | (Matrix_Float (_,c1), Matrix_Float (r2,_)) when c1 = r2 -> Matrix_Float (r2, c1)
          | _ -> raise (Type_error "Matrix multiplication dimension mismatch"))
-
-    | _ -> failwith "Unimplemented expression type"
+    | Inv e -> type_of_expr env e
+    | Angle (e1, e2) ->
+        let t1 = type_of_expr env e1 in
+        let t2 = type_of_expr env e2 in
+        (match (t1, t2) with
+        | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Float
+        | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
+        | _ -> raise (Type_error ("Invalid angle dimensions: cannot compute angle between " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")))
+    
+    | IsZero e ->
+        let _ = type_of_expr env e in
+        Bool
+    | _ -> failwith "Unimplemented expression type "
 
   let rec typecheck_stmt env = function
     | Assign(var, expr) ->
@@ -180,6 +213,11 @@ module TypeChecker = struct
         ignore (typecheck_stmt loop_env body);
             (* 5. Return to PARENT scope *)
         env
+
+        (* | Assign(var, expr) ->
+        let expr_type = type_of_expr env expr in
+        add_var env var expr_type; 
+        env*)
 
     | VectorDecl(var, dim, init) ->
         let init_type = type_of_expr env init in

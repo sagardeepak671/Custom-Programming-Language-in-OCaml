@@ -1,18 +1,17 @@
 // (* parser.mly *)
 %{
 open Ast 
-%}
-
+%} 
 %token INPUT PRINT ASSIGN PLUS MINUS MULTIPLY DIVIDE ABS
 %token IF THEN ELSE FOR WHILE 
 %token INV_BOOL INV_SCALA INV_VEC INV_MAT
-%token DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO_VEC ISZERO_SCALA
+%token DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
 %token TRANSPOSE_MAT MULT_MAT DET_MAT INVERSE_MAT
 %token TYPE_BOOL TYPE_INT TYPE_FLOAT INT_TYPE_VECTOR FLOAT_TYPE_VECTOR INT_TYPE_MATRIX FLOAT_TYPE_MATRIX
 %token EQ NEQ GT LT GE LE
 %token AND OR NOT
 %token MOD 
-%token ADD_VECTOR SCALE_VECTOR DOT_VECTOR ANGLE MAGNITUDE DIMENSION
+%token ADD_VECTOR SCALE_VECTOR DIMENSION
 %token ADD_MATRIX SCALE_MATRIX MULTIPLY_MATRIX TRANSPOSE DETERMINANT
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMICOLON
 %token <string> STRING_LITERAL
@@ -32,12 +31,11 @@ open Ast
 %left MOD INCREMENT DECREMENT
 %left ASSIGN
 %left PLUS MINUS ADD_VECTOR ADD_MATRIX
-%left MULTIPLY DIVIDE SCALE_VECTOR SCALE_MATRIX
-%left DOT_VECTOR ANGLE
+%left MULTIPLY DIVIDE SCALE_VECTOR SCALE_MATRIX 
 %left MULTIPLY_MATRIX
 %nonassoc UMINUS   
 %nonassoc NOT ABS
-%nonassoc DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO_VEC ISZERO_SCALA
+%nonassoc DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
 %nonassoc TRANSPOSE_MAT MULT_MAT DET_MAT INVERSE_MAT
 %nonassoc INV_BOOL INV_SCALA INV_VEC INV_MAT
 %nonassoc TRANSPOSE DETERMINANT
@@ -107,12 +105,17 @@ float_vector_literal:
   ;
 int_vector_elements:
     INT_VAL                          { [$1] }
+  | MINUS INT_VAL                  { [(-$2)] }
   | INT_VAL COMMA int_vector_elements { $1 :: $3 }
+  | MINUS INT_VAL COMMA int_vector_elements { (-$2) :: $4 }
   ;
 float_vector_elements:
     FLOAT_VAL                               { [$1] }
+  | MINUS FLOAT_VAL                        { [(-1.0 *. $2)] }
   | FLOAT_VAL COMMA float_vector_elements    { $1 :: $3 }
+  | MINUS INT_VAL                        { [(-1.0 *. float_of_int $2)] }
   | INT_VAL                                 { [float_of_int $1] }
+  | MINUS INT_VAL COMMA float_vector_elements { (-1.0 *. float_of_int $2) :: $4 }
   | INT_VAL COMMA float_vector_elements      { (float_of_int $1) :: $3 }
   ;
 int_matrix_literal:
@@ -160,14 +163,11 @@ func_expr:
   | MAG_VEC LPAREN expr RPAREN                   { Mag $3 }
   | MAG_SCALA LPAREN expr RPAREN                 { Mag $3 }
   | ANGLE_VEC LPAREN expr COMMA expr RPAREN      { Angle ($3, $5) }
-  | ISZERO_VEC LPAREN expr RPAREN                { IsZero $3 }
-  | ISZERO_SCALA LPAREN expr RPAREN              { IsZero $3 }
+  | ISZERO LPAREN expr RPAREN                { IsZero $3 } 
   | TRANSPOSE_MAT LPAREN expr RPAREN             { Transpose $3 }
   | MULT_MAT LPAREN expr COMMA expr RPAREN       { Mult ($3, $5) }
   | DET_MAT LPAREN expr RPAREN                   { Det $3 }
-  | INVERSE_MAT LPAREN expr RPAREN               { Inverse $3 }
-  | expr DOT_VECTOR expr                         { DotProd ($1, $3) }
-  | expr ANGLE expr                              { Angle ($1, $3) }
+  | INVERSE_MAT LPAREN expr RPAREN               { Inverse $3 }  
   | expr ADD_VECTOR expr                         { Add ($1, $3) }
   | expr ADD_MATRIX expr                         { Add ($1, $3) }
   | expr SCALE_VECTOR expr                       { ScalProd ($1, $3) }

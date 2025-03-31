@@ -1,5 +1,5 @@
 number:=103; 
-i:=2;
+i:=333;
 ans:=true;
 while(i<number){
     if((number % i) ==0 )then{  

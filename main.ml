@@ -39,5 +39,9 @@ let parse_input lexbuf =
   Printf.printf "\n<---STD OUT--> ✅🥳\n";
 
   (**INTERPRET*)
+  try
   let final_interpreted_env = Interpreter.execute_program ast in 
   print_INTERPRETED_ENV final_interpreted_env;
+  with
+  | Interpreter.RuntimeError msg ->
+      Printf.eprintf "Runtime error: %s\n" msg;
