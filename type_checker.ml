@@ -47,6 +47,7 @@ module TypeChecker = struct
               var 
               (string_of_type typ) (string_of_type existing_type)
           ))
+      | Some _ -> () (* Variable already declared with the same type *)
       | _ -> Hashtbl.add env.symbol_table var typ
 
   let get_vector_dim = function
@@ -148,7 +149,7 @@ module TypeChecker = struct
     | Inverse e ->
       let t = type_of_expr env e in
       (match t with
-       | Matrix_Int (r, c) when r = c -> Matrix_Int (r, c)
+       | Matrix_Int (r, c) when r = c -> Matrix_Float (r, c)
        | Matrix_Float (r, c) when r = c -> Matrix_Float (r, c)
        | _ -> raise (Type_error ("Invalid Inverse: incompatible type " ^ string_of_type t ^ "😭")))
  

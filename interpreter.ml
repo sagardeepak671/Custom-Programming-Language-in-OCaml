@@ -15,16 +15,10 @@ let rec string_of_value = function
   | BoolVal b -> "Bool(" ^ string_of_bool b ^ ")"
   | IntVal i -> "Int(" ^ string_of_int i ^ ")"
   | FloatVal f -> "Float(" ^ string_of_float f ^ ")"
-  | IntVector lst -> 
-      "IntVector[" ^ String.concat "; " (List.map string_of_int lst) ^ "]"
-  | FloatVector lst -> 
-      "FloatVector[" ^ String.concat "; " (List.map string_of_float lst) ^ "]"
-  | IntMatrix m ->
-      "IntMatrix[\n" ^ String.concat "\n" 
-        (List.map (fun r -> "  [" ^ String.concat "; " (List.map string_of_int r) ^ "]") m) ^ "\n]"
-  | FloatMatrix m ->
-      "FloatMatrix[\n" ^ String.concat "\n" 
-        (List.map (fun r -> "  [" ^ String.concat "; " (List.map string_of_float r) ^ "]") m) ^ "\n]"
+  | IntVector lst -> "IntVector[" ^ String.concat ", " (List.map string_of_int lst) ^ "]"
+  | FloatVector lst -> "FloatVector[" ^ String.concat ", " (List.map string_of_float lst) ^ "]"
+  | IntMatrix m ->"IntMatrix[\n" ^ String.concat "\n" (List.map (fun r -> "  [" ^ String.concat ", " (List.map string_of_int r) ^ "]") m) ^ "\n]"
+  | FloatMatrix m ->"FloatMatrix[\n" ^ String.concat "\n"  (List.map (fun r -> "  [" ^ String.concat ", " (List.map string_of_float r) ^ "]") m) ^ "\n]"
 
 let matrix_dims_equal m1 m2 =
   let rows1 = List.length m1 in
@@ -49,11 +43,6 @@ let rec lookup_env env id =
     | Some parent -> lookup_env parent id
     | None -> raise (RuntimeError ("Undefined variable: " ^ id))
     
-let update_env env id v =
-  if Hashtbl.mem env.symbols id 
-  then Hashtbl.replace env.symbols id v
-  else Hashtbl.add env.symbols id v
-
 let debug_env env = 
   (match env.parent with
    | Some env -> 
@@ -93,18 +82,6 @@ let rec check_and_update_env env var_name new_value =
     |true -> ()
     |false ->Hashtbl.add env.symbols id value)
     
-  (* let update_environment_with_common_elements parent_env new_env =
-    (* Iterate through all variables in new environment *)
-    Hashtbl.iter (fun var_name new_value ->
-      (* Update variable in parent hierarchy if exists *)
-        ignore (helper_update_env parent_env var_name new_value)
-      (* let _ = helper_update_env parent_env var_name new_value |> ignore *)
-    ) new_env.symbols;
-    
-    (* Return original parent environment *)
-    match parent_env with
-    | Some env -> env
-    | None -> new_env *)
 
 let add_values v1 v2 =
   match (v1, v2) with
@@ -144,7 +121,6 @@ let scal_prod v1 v2 =
   | BoolVal b, BoolVal b2 -> BoolVal (b && b2)
   | _ -> raise (RuntimeError "Invalid scalar product operands")
   
-  (* 6. Vector Operations *)
 let dot_prod v1 v2 =
   match (v1, v2) with
   | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->
@@ -193,43 +169,90 @@ let rec matrix_mult v1 v2 =
             ) m2t
         ) m1)
   | _ -> raise (RuntimeError "Matrix multiplication requires two matrices")
-                      
-                      (* 8. Determinant and Inverse *)
+                
 module MatrixOps = struct
+  (* Generic minor function: remove the specified row and column *)
+  let minor m row col =
+    List.mapi (fun i r ->
+      if i = row then []
+      else
+        List.mapi (fun j x -> if j = col then None else Some x) r
+        |> List.filter_map Fun.id
+    ) m
+    |> List.filter (fun r -> r <> [])
+  
+  (* Determinant for integer matrices *)
   let rec det_int = function
     | [[x]] -> x
     | m ->
-        let rec minor matrix row col =
-          List.mapi (fun i r ->
-              if i = row then []
-              else List.mapi (fun j x -> if j = col then None else Some x) r
-                   |> List.filter_map Fun.id
-            ) matrix
-          |> List.filter (fun r -> r <> [])
-        in
-        List.mapi (fun i x ->
-            x * det_int (minor m 0 i) * if i mod 2 = 0 then 1 else -1
-          ) (List.hd m) |> List.fold_left (+) 0
-                    
+       List.mapi (fun i x ->
+         x * det_int (minor m 0 i) * (if i mod 2 = 0 then 1 else -1)
+       ) (List.hd m)
+       |> List.fold_left (+) 0
+  
+  (* Determinant for float matrices *)
   let rec det_float = function
     | [[x]] -> x
     | m ->
-        let rec minor matrix row col =
-          List.mapi (fun i r ->
-              if i = row then []
-              else List.mapi (fun j x -> if j = col then None else Some x) r
-                   |> List.filter_map Fun.id
-            ) matrix
-          |> List.filter (fun r -> r <> [])
-        in
-        List.mapi (fun i x ->
-            x *. det_float (minor m 0 i) *. if i mod 2 = 0 then 1.0 else -1.0
-          ) (List.hd m) |> List.fold_left (+.) 0.0
+       List.mapi (fun i x ->
+         x *. det_float (minor m 0 i) *. (if i mod 2 = 0 then 1.0 else -1.0)
+       ) (List.hd m)
+       |> List.fold_left (+.) 0.0
 end
+
+(* Determinant function that works on our matrix variant *)
 let determinant = function
   | IntMatrix m -> IntVal (MatrixOps.det_int m)
   | FloatMatrix m -> FloatVal (MatrixOps.det_float m)
   | _ -> raise (RuntimeError "Determinant requires a matrix")
+
+(* Inverse function: computes the inverse via the adjugate matrix method.
+   Note: The inverse of an integer matrix is returned as a FloatMatrix. *)
+let matrix_inverse mat =
+  match mat with
+  | IntMatrix m ->
+      let d = MatrixOps.det_int m in
+      if d = 0 then raise (RuntimeError "Matrix is singular")
+      else
+        let n = List.length m in
+        (* Compute the cofactor matrix *)
+        let cofactors =
+          List.init n (fun i ->
+            List.init n (fun j ->
+              let minor_m = MatrixOps.minor m i j in
+              let cofactor = MatrixOps.det_int minor_m * (if (i + j) mod 2 = 0 then 1 else -1) in
+              cofactor
+            )
+          )
+        in
+        let adjugate = transpose cofactors in
+        FloatMatrix (
+          List.map (fun row ->
+            List.map (fun x -> float_of_int x /. float_of_int d) row
+          ) adjugate
+        )
+  | FloatMatrix m ->
+      let d = MatrixOps.det_float m in
+      if d = 0.0 then raise (RuntimeError "Matrix is singular")
+      else
+        let n = List.length m in
+        let cofactors =
+          List.init n (fun i ->
+            List.init n (fun j ->
+              let minor_m = MatrixOps.minor m i j in
+              let cofactor = MatrixOps.det_float minor_m *. (if (i + j) mod 2 = 0 then 1.0 else -1.0) in
+              cofactor
+            )
+          )
+        in
+        let adjugate = transpose cofactors in
+        FloatMatrix (
+          List.map (fun row ->
+            List.map (fun x -> x /. d) row
+          ) adjugate
+        )
+  | _ -> raise (RuntimeError "Matrix inversion requires a matrix")
+
 
 let angle v1 v2 =
   match (v1, v2) with
@@ -277,11 +300,6 @@ let is_zero = function
   | IntMatrix m -> BoolVal (List.for_all (List.for_all ((=) 0)) m)
   | FloatMatrix m -> BoolVal (List.for_all (List.for_all (fun x -> abs_float x < 1e-6)) m)
   | BoolVal b -> BoolVal (not b)
-  
-let matrix_inverse mat =
-  match mat with
-  | _ -> mat 
-
 let eq v1 v2 =
   match (v1, v2) with
   | (BoolVal b1, BoolVal b2) -> BoolVal (b1 = b2)
@@ -383,7 +401,7 @@ and eval_bool env e =
   match eval_expr env e with
   | BoolVal b -> b
   | _ -> raise (RuntimeError "Condition must evaluate to boolean")
-                      (* 9. Execution of Statements *)
+
 let rec execute_stmt env = function
   | Assign (id, expr) ->
       let value = eval_expr env expr in
@@ -392,10 +410,7 @@ let rec execute_stmt env = function
   | Seq stmts -> 
         (* Create a new environment for the sequence of statements *)
       let new_env = create_env (Some env) in 
-      List.fold_left execute_stmt new_env stmts |> ignore;
-        (* Update the parent environment with the new environment *) 
-      (* let _ = debug_env env in   *)
-      (* let _ = debug_env new_env in *)
+      List.fold_left execute_stmt new_env stmts |> ignore; 
       env
   | If (cond, then_b, else_b) ->
       let branch_env = create_env (Some env) in 
@@ -405,11 +420,9 @@ let rec execute_stmt env = function
       env
   | While (cond, body) ->
       let loop_env = create_env (Some env) in 
-      while eval_bool loop_env cond do
-        (* let _ = debug_env loop_env in *)
+      while eval_bool loop_env cond do 
         execute_stmt loop_env body |> ignore; 
-      done;
-      (* loop_env *)
+      done; 
       env
   | For (var, start_expr, cond_expr, step_val, body) ->
         (* Evaluate initial value *)

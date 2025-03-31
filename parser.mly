@@ -6,7 +6,7 @@ open Ast
 %token IF THEN ELSE FOR WHILE 
 %token INV_BOOL INV_SCALA INV_VEC INV_MAT
 %token DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
-%token TRANSPOSE_MAT MULT_MAT DET_MAT INVERSE_MAT
+%token  MULT_MAT  INVERSE_MAT
 %token TYPE_BOOL TYPE_INT TYPE_FLOAT INT_TYPE_VECTOR FLOAT_TYPE_VECTOR INT_TYPE_MATRIX FLOAT_TYPE_MATRIX
 %token EQ NEQ GT LT GE LE
 %token AND OR NOT
@@ -36,7 +36,7 @@ open Ast
 %nonassoc UMINUS   
 %nonassoc NOT ABS
 %nonassoc DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
-%nonassoc TRANSPOSE_MAT MULT_MAT DET_MAT INVERSE_MAT
+%nonassoc  MULT_MAT  INVERSE_MAT
 %nonassoc INV_BOOL INV_SCALA INV_VEC INV_MAT
 %nonassoc TRANSPOSE DETERMINANT
 
@@ -163,9 +163,9 @@ func_expr:
   | MAG_SCALA LPAREN expr RPAREN                 { Mag $3 }
   | ANGLE_VEC LPAREN expr COMMA expr RPAREN      { Angle ($3, $5) }
   | ISZERO LPAREN expr RPAREN                { IsZero $3 } 
-  | TRANSPOSE_MAT LPAREN expr RPAREN             { Transpose $3 }
+  | TRANSPOSE LPAREN expr RPAREN             { Transpose $3 }
   | MULT_MAT LPAREN expr COMMA expr RPAREN       { Mult ($3, $5) }
-  | DET_MAT LPAREN expr RPAREN                   { Det $3 }
+  | DETERMINANT LPAREN expr RPAREN                   { Det $3 }
   | INVERSE_MAT LPAREN expr RPAREN               { Inverse $3 }  
   | expr ADD_VECTOR expr                         { Add ($1, $3) }
   | expr ADD_MATRIX expr                         { Add ($1, $3) }

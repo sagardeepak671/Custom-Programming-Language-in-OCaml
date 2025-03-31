@@ -53,10 +53,8 @@ rule token = parse
   | "mag_vec"                  { MAG_VEC }
   | "mag_scala"                { MAG_SCALA }
   | "angle_vec"                { ANGLE_VEC }
-  | "is_zero"                  { ISZERO }
-  | "transpose_mat"            { TRANSPOSE_MAT }
-  | "mult_mat"                 { MULT_MAT }
-  | "det_mat"                  { DET_MAT }
+  | "is_zero"                  { ISZERO } 
+  | "mult_mat"                 { MULT_MAT } 
   | "inverse_mat"              { INVERSE_MAT } 
   | "dimension"                { DIMENSION }
   | "transpose"                { TRANSPOSE }
