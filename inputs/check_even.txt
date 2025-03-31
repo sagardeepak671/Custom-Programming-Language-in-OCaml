@@ -1,0 +1,8 @@
+ans := false;
+num := 332;
+if(num%2==0) then { 
+    b:=2;
+    ans := true;
+}else{
+    ans := false;
+};

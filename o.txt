@@ -1,0 +1,15 @@
+Enter DSL code (press Ctrl+D to finish):
+
+
+<--Parsed AST-->✅🥳
+Seq([
+  Assign(a, ConstI(3))
+])
+
+<--Type checking successful-->✅🥳
+a : int
+
+<---STD OUT--> ✅🥳
+
+<---Final Interpreted Values--> ✅🥳
+- a : Int(3)

@@ -1,0 +1,11 @@
+number:=103; 
+i:=2;
+ans:=true;
+while(i<number){
+    if((number % i) ==0 )then{  
+            i:=number+1;
+            ans:=false; 
+    };
+    i:=i+1;
+};
+Print(ans);

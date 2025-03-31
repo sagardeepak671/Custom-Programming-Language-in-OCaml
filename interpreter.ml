@@ -1,0 +1,475 @@
+(* evaluator.ml *) 
+open Ast
+exception RuntimeError of string   
+(* The type of values that can be evaluated *)
+type value =
+  | BoolVal of bool
+  | IntVal of int
+  | FloatVal of float
+  | IntVector of int list
+  | FloatVector of float list
+  | IntMatrix of int list list
+  | FloatMatrix of float list list
+
+let rec string_of_value = function
+  | BoolVal b -> "Bool(" ^ string_of_bool b ^ ")"
+  | IntVal i -> "Int(" ^ string_of_int i ^ ")"
+  | FloatVal f -> "Float(" ^ string_of_float f ^ ")"
+  | IntVector lst -> 
+      "IntVector[" ^ String.concat "; " (List.map string_of_int lst) ^ "]"
+  | FloatVector lst -> 
+      "FloatVector[" ^ String.concat "; " (List.map string_of_float lst) ^ "]"
+  | IntMatrix m ->
+      "IntMatrix[\n" ^ String.concat "\n" 
+        (List.map (fun r -> "  [" ^ String.concat "; " (List.map string_of_int r) ^ "]") m) ^ "\n]"
+  | FloatMatrix m ->
+      "FloatMatrix[\n" ^ String.concat "\n" 
+        (List.map (fun r -> "  [" ^ String.concat "; " (List.map string_of_float r) ^ "]") m) ^ "\n]"
+
+let matrix_dims_equal m1 m2 =
+  let rows1 = List.length m1 in
+  let rows2 = List.length m2 in
+  rows1 = rows2 && 
+  (let cols1 = List.length (List.hd m1) in
+   let cols2 = List.length (List.hd m2) in
+   cols1 = cols2)
+(* 2. Environment Management *)
+type environment = {
+  parent: environment option;
+  symbols: (string, value) Hashtbl.t;
+}
+
+
+
+let create_env parent = 
+  { parent; symbols = Hashtbl.create 16 }
+  
+let rec lookup_env env id =
+  match Hashtbl.find_opt env.symbols id with
+  | Some v -> v
+  | None -> match env.parent with
+    | Some parent -> lookup_env parent id
+    | None -> raise (RuntimeError ("Undefined variable: " ^ id))
+    
+let update_env env id v =
+  if Hashtbl.mem env.symbols id 
+  then Hashtbl.replace env.symbols id v
+  else Hashtbl.add env.symbols id v
+
+let debug_env env = 
+  (match env.parent with
+   | Some env -> 
+       Printf.printf "\n==PARENT==:\n";
+       Hashtbl.iter (fun k v -> 
+           Printf.printf "- %s : %s\n" k (string_of_value v)  (* Changed from Evaluator *)
+         ) env.symbols
+   | None -> Printf.printf "\n==NO_PARENT==\n");
+  Printf.printf "\n==CHILD==:\n";
+  Hashtbl.iter (fun k v -> 
+      Printf.printf "- %s : %s\n" k (string_of_value v)  (* Changed from Evaluator *)
+    ) env.symbols 
+;;
+          
+let rec helper_update_env env var_name new_value =
+  match env with
+  | Some env ->
+      if Hashtbl.mem env.symbols var_name then
+        Hashtbl.replace env.symbols var_name new_value
+      else
+        helper_update_env env.parent var_name new_value
+  | None -> () (* Variable not found in hierarchy *)
+
+  let update_environment_with_common_elements parent_env new_env =
+    (* Iterate through all variables in new environment *)
+    Hashtbl.iter (fun var_name new_value ->
+      (* Update variable in parent hierarchy if exists *)
+      helper_update_env parent_env var_name new_value
+    ) new_env.symbols;
+    
+    (* Return original parent environment *)
+    match parent_env with
+    | Some env -> env
+    | None -> new_env
+  
+
+let add_values v1 v2 =
+  match (v1, v2) with
+  | IntVal a, IntVal b -> IntVal (a + b)
+  | FloatVal a, FloatVal b -> FloatVal (a +. b)
+  | IntVector a, IntVector b when List.length a = List.length b -> 
+      IntVector (List.map2 (+) a b)
+  | FloatVector a, FloatVector b when List.length a = List.length b -> 
+      FloatVector (List.map2 (+.) a b)
+  | IntMatrix a, IntMatrix b when matrix_dims_equal a b ->
+      IntMatrix (List.map2 (List.map2 (+)) a b)
+  | FloatMatrix a, FloatMatrix b when matrix_dims_equal a b ->
+      FloatMatrix (List.map2 (List.map2 (+.)) a b)
+  | _ -> raise (RuntimeError "Invalid addition operands")
+      
+let inv_value = function
+  | IntVal i -> IntVal (-i)
+  | FloatVal f -> FloatVal (-.f)
+  | IntVector v -> IntVector (List.map (( * ) (-1)) v)
+  | FloatVector v -> FloatVector (List.map (( *. ) (-1.0)) v)
+  | _ -> raise (RuntimeError "Invalid inversion operand")
+      
+      
+      (* 4. Core Evaluation Functions *)
+      
+      (* 5. Mathematical Operations *)
+      
+      
+      
+let scal_prod v1 v2 =
+  match (v1, v2) with
+  | IntVal a, IntVal b -> IntVal (a * b)
+  | FloatVal a, FloatVal b -> FloatVal (a *. b)
+  | IntVal s, IntVector v -> IntVector (List.map (( * ) s) v)
+  | FloatVal s, FloatVector v -> FloatVector (List.map (( *. ) s) v)
+  | IntVal s, IntMatrix m -> IntMatrix (List.map (List.map (( * ) s)) m)
+  | FloatVal s, FloatMatrix m -> FloatMatrix (List.map (List.map (( *. ) s)) m)
+  | IntVector v, IntVal s -> IntVector (List.map (( * ) s) v)
+  | FloatVector v, FloatVal s -> FloatVector (List.map (( *. ) s) v)
+  | IntMatrix m, IntVal s -> IntMatrix (List.map (List.map (( * ) s)) m)
+  | FloatMatrix m, FloatVal s -> FloatMatrix (List.map (List.map (( *. ) s)) m)
+  | BoolVal b, BoolVal b2 -> BoolVal (b && b2)
+  | _ -> raise (RuntimeError "Invalid scalar product operands")
+  
+  (* 6. Vector Operations *)
+let dot_prod v1 v2 =
+  match (v1, v2) with
+  | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->
+      IntVal (List.fold_left2 (fun acc a b -> acc + a * b) 0 v1 v2)
+  | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->
+      FloatVal (List.fold_left2 (fun acc a b -> acc +. a *. b) 0.0 v1 v2)
+  | _ -> raise (RuntimeError "Invalid dot product operands")
+    
+let magnitude = function
+  | IntVector v -> 
+      FloatVal (sqrt (float_of_int (List.fold_left (fun acc x -> acc + x * x) 0 v)))
+  | FloatVector v ->
+      FloatVal (sqrt (List.fold_left (fun acc x -> acc +. x *. x) 0.0 v))
+  | _ -> raise (RuntimeError "Magnitude requires a vector")
+        
+        (* 7. Matrix Operations *)
+let rec transpose matrix =
+  match matrix with
+  | [] | [] :: _ -> [] (* Return empty list if the input is empty or irregular *)
+  | _ ->
+      let heads = List.map List.hd matrix in
+      let tails = List.map List.tl matrix in
+      heads :: transpose tails 
+
+let transpose_value = function
+  | IntMatrix m -> IntMatrix (transpose m)
+  | FloatMatrix m -> FloatMatrix (transpose m)
+  | _ -> raise (RuntimeError "Transpose requires a matrix")
+    
+
+let rec matrix_mult v1 v2 =
+  match (v1, v2) with
+  | IntMatrix m1, IntMatrix m2 ->
+      let m2t = transpose m2 in
+      IntMatrix (List.map (fun row ->
+          List.map (fun col ->
+              List.fold_left2 (fun acc a b -> acc + a * b) 0 row col
+            ) m2t
+        ) m1)
+  | FloatMatrix m1, FloatMatrix m2 ->
+      let m2t = transpose m2 in
+      FloatMatrix (List.map (fun row ->
+          List.map (fun col ->
+              List.fold_left2 (fun acc a b -> acc +. a *. b) 0.0 row col
+            ) m2t
+        ) m1)
+  | _ -> raise (RuntimeError "Matrix multiplication requires two matrices")
+                      
+                      (* 8. Determinant and Inverse *)
+module MatrixOps = struct
+  let rec det_int = function
+    | [[x]] -> x
+    | m ->
+        let rec minor matrix row col =
+          List.mapi (fun i r ->
+              if i = row then []
+              else List.mapi (fun j x -> if j = col then None else Some x) r
+                   |> List.filter_map Fun.id
+            ) matrix
+          |> List.filter (fun r -> r <> [])
+        in
+        List.mapi (fun i x ->
+            x * det_int (minor m 0 i) * if i mod 2 = 0 then 1 else -1
+          ) (List.hd m) |> List.fold_left (+) 0
+                    
+  let rec det_float = function
+    | [[x]] -> x
+    | m ->
+        let rec minor matrix row col =
+          List.mapi (fun i r ->
+              if i = row then []
+              else List.mapi (fun j x -> if j = col then None else Some x) r
+                   |> List.filter_map Fun.id
+            ) matrix
+          |> List.filter (fun r -> r <> [])
+        in
+        List.mapi (fun i x ->
+            x *. det_float (minor m 0 i) *. if i mod 2 = 0 then 1.0 else -1.0
+          ) (List.hd m) |> List.fold_left (+.) 0.0
+end
+let determinant = function
+  | IntMatrix m -> IntVal (MatrixOps.det_int m)
+  | FloatMatrix m -> FloatVal (MatrixOps.det_float m)
+  | _ -> raise (RuntimeError "Determinant requires a matrix")
+let angle v1 v2 =
+  match (v1, v2) with
+  | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->
+      let dot = match dot_prod (IntVector v1) (IntVector v2) with
+        | IntVal d -> float_of_int d
+        | _ -> raise (RuntimeError "Dot product must return an integer value")
+      in
+      let mag1 = match magnitude (IntVector v1) with
+        | FloatVal m -> m
+        | _ -> raise (RuntimeError "Magnitude must return a float value")
+      in
+      let mag2 = match magnitude (IntVector v2) with
+        | FloatVal m -> m
+        | _ -> raise (RuntimeError "Magnitude must return a float value")
+      in
+      FloatVal (acos (dot /. (mag1 *. mag2)))
+  | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->
+      let dot = match dot_prod (FloatVector v1) (FloatVector v2) with
+        | FloatVal d -> d
+        | _ -> raise (RuntimeError "Dot product must return a float value")
+      in
+      let mag1 = match magnitude (FloatVector v1) with
+        | FloatVal m -> m
+        | _ -> raise (RuntimeError "Magnitude must return a float value")
+      in
+      let mag2 = match magnitude (FloatVector v2) with
+        | FloatVal m -> m
+        | _ -> raise (RuntimeError "Magnitude must return a float value")
+      in
+      FloatVal (acos (dot /. (mag1 *. mag2)))
+  | _ -> raise (RuntimeError "Angle requires two vectors")
+  
+let is_zero = function
+  | IntVal i -> BoolVal (i = 0)
+  | FloatVal f -> BoolVal (f = 0.0)
+  | IntVector v -> BoolVal (List.for_all ((=) 0) v)
+  | FloatVector v -> BoolVal (List.for_all ((=) 0.0) v)
+  | IntMatrix m -> BoolVal (List.for_all (List.for_all ((=) 0)) m)
+  | FloatMatrix m -> BoolVal (List.for_all (List.for_all ((=) 0.0)) m)
+  | BoolVal b -> BoolVal (not b) 
+  
+let matrix_inverse mat =
+  match mat with
+  | _ -> mat 
+
+let eq v1 v2 =
+  match (v1, v2) with
+  | (BoolVal b1, BoolVal b2) -> BoolVal (b1 = b2)
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 = i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 = f2)
+  | (IntVector v1, IntVector v2) -> BoolVal (v1 = v2)
+  | (FloatVector v1, FloatVector v2) -> BoolVal (v1 = v2)
+  | (IntMatrix m1, IntMatrix m2) -> BoolVal (m1 = m2)
+  | (FloatMatrix m1, FloatMatrix m2) -> BoolVal (m1 = m2)
+  | _ -> raise (RuntimeError "Cannot compare different types")
+  
+let neq v1 v2 = 
+  match eq v1 v2 with
+  | BoolVal b -> BoolVal (not b)
+  | _ -> raise (RuntimeError "Invalid inequality comparison")
+  
+let lt v1 v2 =
+  match (v1, v2) with
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 < i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 < f2)
+  | _ -> raise (RuntimeError "Operator < requires numeric scalars")
+  
+let gt v1 v2 =
+  match (v1, v2) with
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 > i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 > f2)
+  | _ -> raise (RuntimeError "Operator > requires numeric scalars")
+  
+let le v1 v2 =
+  match (v1, v2) with
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 <= i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 <= f2)
+  | _ -> raise (RuntimeError "Operator <= requires numeric scalars")
+  
+let ge v1 v2 =
+  match (v1, v2) with
+  | (IntVal i1, IntVal i2) -> BoolVal (i1 >= i2)
+  | (FloatVal f1, FloatVal f2) -> BoolVal (f1 >= f2)
+  | _ -> raise (RuntimeError "Operator >= requires numeric scalars")
+  
+let input_value prompt = 
+    (*do later*)
+  IntVal 2;;
+let print_value prompt = 
+  IntVal 2;;
+
+let eval_mod e1 e2 =
+  match (e1,e2) with
+  | IntVal i1, IntVal i2 -> IntVal (i1 mod i2)
+  | _ -> raise (RuntimeError "Modulus requires integer values")
+
+(* 8. Evaluation of Expressions *)
+let rec eval_expr env = function
+  | T -> BoolVal true
+  | F -> BoolVal false
+  | ConstS f -> FloatVal f
+  | ConstI i -> IntVal i
+  | ConstV v -> FloatVector v
+  | ConstIntV v -> IntVector v
+  | ConstM m -> FloatMatrix m
+  | ConstIntM m -> IntMatrix m
+  | Var id -> lookup_env env id
+  | Add (e1, e2) -> add_values (eval_expr env e1) (eval_expr env e2)
+  | Mod (e1, e2) -> eval_mod (eval_expr env e1) (eval_expr env e2)
+  | Inv e -> inv_value (eval_expr env e)
+  | ScalProd (e1, e2) -> scal_prod (eval_expr env e1) (eval_expr env e2)
+  | DotProd (e1, e2) -> dot_prod (eval_expr env e1) (eval_expr env e2)
+  | Mag e -> magnitude (eval_expr env e)
+  | Angle (e1, e2) -> angle (eval_expr env e1) (eval_expr env e2)
+  | IsZero e -> is_zero (eval_expr env e)
+  | Cond (cond, e1, e2) ->
+      if eval_bool env cond then eval_expr env e1 else eval_expr env e2
+  | Transpose e ->let value = eval_expr env e in transpose_value value
+  | Mult (e1, e2) -> matrix_mult (eval_expr env e1) (eval_expr env e2)
+  | Det e -> determinant (eval_expr env e)
+  | Inverse e ->
+      let value = eval_expr env e in
+      matrix_inverse value
+  | Eq (e1, e2) -> eq (eval_expr env e1) (eval_expr env e2)
+  | Neq (e1, e2) -> neq (eval_expr env e1) (eval_expr env e2)
+  | Lt (e1, e2) -> lt (eval_expr env e1) (eval_expr env e2)
+  | Gt (e1, e2) -> gt (eval_expr env e1) (eval_expr env e2)
+  | Le (e1, e2) -> le (eval_expr env e1) (eval_expr env e2)
+  | Ge (e1, e2) -> ge (eval_expr env e1) (eval_expr env e2)
+  | Input prompt -> input_value prompt
+  | Print msg ->  BoolVal true 
+
+and eval_bool env e =
+  match eval_expr env e with
+  | BoolVal b -> b
+  | _ -> raise (RuntimeError "Condition must evaluate to boolean")
+                      (* 9. Execution of Statements *)
+let rec execute_stmt env = function
+  | Assign (id, expr) ->
+      let value = eval_expr env expr in
+      update_env env id value;
+      env
+  | Seq stmts -> 
+        (* Create a new environment for the sequence of statements *)
+      let new_env = create_env (Some env) in 
+      List.fold_left execute_stmt new_env stmts |> ignore;
+        (* Update the parent environment with the new environment *) 
+      (* let _ = debug_env env in   *)
+      (* let _ = debug_env new_env in *)
+      update_environment_with_common_elements new_env.parent new_env
+  | If (cond, then_b, else_b) ->
+      let branch_env = create_env (Some env) in 
+      if eval_bool env cond 
+      then execute_stmt branch_env then_b |> ignore
+      else execute_stmt branch_env else_b |> ignore;
+      update_environment_with_common_elements branch_env.parent branch_env 
+  | While (cond, body) ->
+      let loop_env = create_env (Some env) in 
+      while eval_bool loop_env cond do
+        (* let _ = debug_env loop_env in *)
+        execute_stmt loop_env body |> ignore; 
+      done;
+      (* loop_env *)
+      update_environment_with_common_elements loop_env.parent loop_env
+  | For (var, start_expr, cond_expr, step_val, body) ->
+        (* Evaluate initial value *)
+      let start_val = eval_expr env start_expr in 
+        (* Validate types *)
+      let check_int = function
+        | IntVal _ -> true
+        | _ -> false
+      in
+      if not (check_int start_val) then
+        raise (RuntimeError "For loop start must be integer");
+    
+        (* Validate step value *)
+      let step_int = match step_val with
+        | ConstI s -> s  (* Extract integer step value directly *)
+        | _ -> raise (RuntimeError "For loop step must be a scalar integer")
+      in
+
+         
+        (* Create loop environment *)
+      let loop_env = 
+        let new_env = create_env (Some env) in
+        update_env new_env var start_val;
+        new_env
+      in
+          
+           
+        (* Loop execution *)
+      let rec loop current =
+          (* Check condition *)
+        let cond_result = eval_expr loop_env cond_expr in
+        match cond_result with
+        | BoolVal true ->
+              (* Execute body *)
+            execute_stmt loop_env body |> ignore;
+    
+              (* Update variable *)
+            let next_current = match current with
+              | IntVal c -> IntVal (c + step_int)
+              | _ -> raise (RuntimeError "Loop variable must be integer")
+            in
+            update_env loop_env var next_current;
+    
+              (* Repeat *)
+            loop next_current
+        | BoolVal false -> ()
+        | _ -> raise (RuntimeError "For loop condition must be boolean")
+      in
+    
+      loop start_val;
+      update_environment_with_common_elements loop_env.parent loop_env
+
+  |VectorDecl (name, size, e) ->
+      let value = eval_expr env e in
+      let vector = match value with
+        | IntVector v when List.length v = size -> value
+        | FloatVector v when List.length v = size -> value
+        | _ -> raise (RuntimeError "Vector declaration size mismatch")
+      in
+      update_env env name vector;
+      env; (* Update the environment with the new vector *)
+  | MatrixDecl (name, rows, cols, e) ->
+      let value = eval_expr env e in
+      let matrix = match value with
+        | IntMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
+        | FloatMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
+        | _ -> raise (RuntimeError "Matrix declaration size mismatch")
+      in
+      update_env env name matrix;
+      env; (* Update the environment with the new matrix *)
+    
+  | PrintStmt e ->
+      let value = eval_expr env e in
+      print_endline (string_of_value value);
+      env;
+
+  
+  | _ -> env  
+
+let execute_program program =
+  let gloabl_env = create_env None in 
+  match program with
+  | Seq stmts -> List.fold_left execute_stmt gloabl_env stmts
+  | _ -> raise (RuntimeError "Program must be a sequence of statements")
+
+let print_INTERPRETED_ENV env = 
+  Printf.printf "\n<---Final Interpreted Values--> ✅🥳\n";
+  Hashtbl.iter (fun k v -> 
+      Printf.printf "- %s : %s\n" k (string_of_value v)  
+    ) env.symbols

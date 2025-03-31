@@ -1,0 +1,5 @@
+intmatrix a := 2,2 [[1,2],[3,4]];
+intmatrix b := 1,1 [[5]];
+c := a; 
+intmatrix c := 1,2 [[2,2]];
+
