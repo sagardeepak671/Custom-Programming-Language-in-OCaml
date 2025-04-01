@@ -1,27 +1,27 @@
-b:=true;
+bool b:=true;
 {
-    c:=false;
+    bool c:=false;
     {
-        a:=2;
+        int a:=2;
     };
 };
-e:=3;
+int e:=3;
 {
-    d:=4;
+    int d:=4;
 };
-f:=5;
+int f:=5;
 {
-    g:=6;
-    f:=43;{
-        h:=7;
+    int g:=6;
+     f:=43;{
+        int h:=7;
         {
-            i:=8;
+            int i:=8;
             {
-                f:=696969;
+                 f:=696969;
                 {
-                  f:=39393;
+                   f:=39393;
                   if(true)then{
-                    f:=2200;
+                     f:=2200;
                     b:=true;
                   }; 
                 };
@@ -31,3 +31,4 @@ f:=5;
     }; 
     b:=false;
 };
+float zz:=23.2;

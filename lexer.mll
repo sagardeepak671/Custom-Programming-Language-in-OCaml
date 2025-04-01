@@ -20,7 +20,7 @@ rule token = parse
   | "floatvector"              { FLOAT_TYPE_VECTOR }
   | "intmatrix"                { INT_TYPE_MATRIX }
   | "floatmatrix"              { FLOAT_TYPE_MATRIX }
-
+  | ".txt"                     { TXT_FILE }
   | "-"                        { MINUS }
   | "*"                        { MULTIPLY }
   | "/"                        { DIVIDE }

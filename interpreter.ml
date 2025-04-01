@@ -71,16 +71,16 @@ let rec check_and_update_env env var_name new_value =
         | IntMatrix _, IntMatrix _
         | FloatMatrix _, FloatMatrix _
         | BoolVal _, BoolVal _ -> Hashtbl.replace env.symbols var_name new_value; true
-        | _ -> raise (RuntimeError ( "Redeclaration error: Variable '" ^ var_name ^ "' redeclared with type"^string_of_value current_value^" (original : "^ string_of_value new_value^") 😭"))
+        | _ -> raise (RuntimeError ( "Redeclaration error/Assigning diff type: Variable '" ^ var_name ^ "' redeclared with type"^string_of_value current_value^" (original : "^ string_of_value new_value^") 😭"))
       ) else
         check_and_update_env env.parent var_name new_value
   | None -> false (* Variable not found in hierarchy *)
   
-  let update_env env id value =
-    let temp = check_and_update_env env.parent id value in
-    (match temp with 
-    |true -> ()
-    |false ->Hashtbl.add env.symbols id value)
+let update_env env id value =
+  let temp = check_and_update_env (Some(env)) id value in
+  (match temp with 
+   |true -> ()
+   |false ->Hashtbl.add env.symbols id value)
     
 
 let add_values v1 v2 =
@@ -174,30 +174,30 @@ module MatrixOps = struct
   (* Generic minor function: remove the specified row and column *)
   let minor m row col =
     List.mapi (fun i r ->
-      if i = row then []
-      else
-        List.mapi (fun j x -> if j = col then None else Some x) r
-        |> List.filter_map Fun.id
-    ) m
+        if i = row then []
+        else
+          List.mapi (fun j x -> if j = col then None else Some x) r
+          |> List.filter_map Fun.id
+      ) m
     |> List.filter (fun r -> r <> [])
   
   (* Determinant for integer matrices *)
   let rec det_int = function
     | [[x]] -> x
     | m ->
-       List.mapi (fun i x ->
-         x * det_int (minor m 0 i) * (if i mod 2 = 0 then 1 else -1)
-       ) (List.hd m)
-       |> List.fold_left (+) 0
+        List.mapi (fun i x ->
+            x * det_int (minor m 0 i) * (if i mod 2 = 0 then 1 else -1)
+          ) (List.hd m)
+        |> List.fold_left (+) 0
   
   (* Determinant for float matrices *)
   let rec det_float = function
     | [[x]] -> x
     | m ->
-       List.mapi (fun i x ->
-         x *. det_float (minor m 0 i) *. (if i mod 2 = 0 then 1.0 else -1.0)
-       ) (List.hd m)
-       |> List.fold_left (+.) 0.0
+        List.mapi (fun i x ->
+            x *. det_float (minor m 0 i) *. (if i mod 2 = 0 then 1.0 else -1.0)
+          ) (List.hd m)
+        |> List.fold_left (+.) 0.0
 end
 
 (* Determinant function that works on our matrix variant *)
@@ -218,18 +218,18 @@ let matrix_inverse mat =
         (* Compute the cofactor matrix *)
         let cofactors =
           List.init n (fun i ->
-            List.init n (fun j ->
-              let minor_m = MatrixOps.minor m i j in
-              let cofactor = MatrixOps.det_int minor_m * (if (i + j) mod 2 = 0 then 1 else -1) in
-              cofactor
+              List.init n (fun j ->
+                  let minor_m = MatrixOps.minor m i j in
+                  let cofactor = MatrixOps.det_int minor_m * (if (i + j) mod 2 = 0 then 1 else -1) in
+                  cofactor
+                )
             )
-          )
         in
         let adjugate = transpose cofactors in
         FloatMatrix (
           List.map (fun row ->
-            List.map (fun x -> float_of_int x /. float_of_int d) row
-          ) adjugate
+              List.map (fun x -> float_of_int x /. float_of_int d) row
+            ) adjugate
         )
   | FloatMatrix m ->
       let d = MatrixOps.det_float m in
@@ -238,18 +238,18 @@ let matrix_inverse mat =
         let n = List.length m in
         let cofactors =
           List.init n (fun i ->
-            List.init n (fun j ->
-              let minor_m = MatrixOps.minor m i j in
-              let cofactor = MatrixOps.det_float minor_m *. (if (i + j) mod 2 = 0 then 1.0 else -1.0) in
-              cofactor
+              List.init n (fun j ->
+                  let minor_m = MatrixOps.minor m i j in
+                  let cofactor = MatrixOps.det_float minor_m *. (if (i + j) mod 2 = 0 then 1.0 else -1.0) in
+                  cofactor
+                )
             )
-          )
         in
         let adjugate = transpose cofactors in
         FloatMatrix (
           List.map (fun row ->
-            List.map (fun x -> x /. d) row
-          ) adjugate
+              List.map (fun x -> x /. d) row
+            ) adjugate
         )
   | _ -> raise (RuntimeError "Matrix inversion requires a matrix")
 
@@ -272,7 +272,7 @@ let angle v1 v2 =
       if abs_float abs1 < 1e-6 || abs_float abs2 < 1e-6 then
         raise (RuntimeError ("Cannot compute angle with zero magnitude: " ^ string_of_value (IntVector v1) ^ " and " ^ string_of_value (IntVector v2) ^ " 😭"))
       else
-      FloatVal (acos (dot /. (abs1 *. abs2)))
+        FloatVal (acos (dot /. (abs1 *. abs2)))
   | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->
       let dot = match dot_prod (FloatVector v1) (FloatVector v2) with
         | FloatVal d -> d
@@ -289,7 +289,7 @@ let angle v1 v2 =
       if abs_float abs1 < 1e-6 || abs_float abs2 < 1e-6 then
         raise (RuntimeError ("Cannot compute angle with zero magnitude: " ^ string_of_value (FloatVector v1) ^ " and " ^ string_of_value (FloatVector v2) ^ " 😭"))
       else
-      FloatVal (acos (dot /. (abs1 *. abs2)))
+        FloatVal (acos (dot /. (abs1 *. abs2)))
   | _ -> raise (RuntimeError ("Angle requires two vectors: cannot compute angle between " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
 let is_zero = function
@@ -396,17 +396,59 @@ let rec eval_expr env = function
   | Gt (e1, e2) -> gt (eval_expr env e1) (eval_expr env e2)
   | Le (e1, e2) -> le (eval_expr env e1) (eval_expr env e2)
   | Ge (e1, e2) -> ge (eval_expr env e1) (eval_expr env e2)
+  |VectorDecl (size, e) ->
+      let value = eval_expr env e in
+      let vector = (match value with
+          | IntVector v when List.length v = size -> value
+          | FloatVector v when List.length v = size -> value
+          | _ -> raise (RuntimeError "Vector declaration size mismatch")) in
+      vector
+  |MatrixDecl (rows, cols, e) ->
+      let value = eval_expr env e in
+      let matrix = (match value with
+          | IntMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
+          | FloatMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
+          | _ -> raise (RuntimeError "Matrix declaration size mismatch")) in
+      matrix
+  | _ -> raise(RuntimeError ("ahaha😭"))
 
 and eval_bool env e =
   match eval_expr env e with
   | BoolVal b -> b
-  | _ -> raise (RuntimeError "Condition must evaluate to boolean")
-
+  | _ -> raise (RuntimeError "Condition must evaluate to boolean") 
+            
 let rec execute_stmt env = function
-  | Assign (id, expr) ->
+  | Assign (id, expr, Some t) ->
+      (*check already in the hashtable of that type*) 
       let value = eval_expr env expr in
-      ignore(update_env env id value);
+  (*print value for debugg*) 
+  (*check if the type of value is same as the type of id*)
+      let temp = check_and_update_env (Some(env)) id value in
+      (match temp with 
+       | true -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭"))
+       | false -> ());
+   
+      let value = eval_expr env expr in
+      (match value with 
+       | IntVal _ when t = Scalar_Int -> ()
+       | FloatVal _ when t = Scalar_Float -> ()
+       | IntVector v when t = Vector_Int (List.length v) -> ()
+       | FloatVector v when t = Vector_Float (List.length v) -> ()
+       | IntMatrix m when t = Matrix_Int ((List.length m), (List.length (List.hd m))) -> ()
+       | FloatMatrix m when t = Matrix_Float ((List.length m), (List.length (List.hd m))) -> ()
+       | BoolVal _ when t = Bool -> ()
+       | _ -> raise (RuntimeError ("Type mismatch: " ^ string_of_value value ^ " 😭"));
+      );
+      update_env env id value; (* Update the environment with the new value *)
       env
+  | Assign (id, expr, None) ->
+    let value = eval_expr env expr in
+    let temp = check_and_update_env (Some(env)) id value in
+    (match temp with 
+     | true -> ()
+     | false -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭")));
+    update_env env id value; (* Update the environment with the new value *)
+    env
   | Seq stmts -> 
         (* Create a new environment for the sequence of statements *)
       let new_env = create_env (Some env) in 
@@ -425,81 +467,63 @@ let rec execute_stmt env = function
       done; 
       env
   | For (var, start_expr, cond_expr, step_val, body) ->
-        (* Evaluate initial value *)
+      (* Evaluate initial value *)
       let start_val = eval_expr env start_expr in 
-        (* Validate types *)
+      (* Validate types *)
       let check_int = function
         | IntVal _ -> true
         | _ -> false
       in
       if not (check_int start_val) then
         raise (RuntimeError "For loop start must be integer");
-    
-        (* Validate step value *)
+  
+      (* Validate step value *)
       let step_int = match step_val with
         | ConstI s -> s  (* Extract integer step value directly *)
         | _ -> raise (RuntimeError "For loop step must be a scalar integer")
       in
 
-         
-        (* Create loop environment *)
+       
+      (* Create loop environment *)
       let loop_env = 
         let new_env = create_env (Some env) in
         update_env new_env var start_val;
         new_env
       in
-          
-           
-        (* Loop execution *)
+        
+         
+      (* Loop execution *)
       let rec loop current =
-          (* Check condition *)
+        (* Check condition *)
         let cond_result = eval_expr loop_env cond_expr in
         match cond_result with
         | BoolVal true ->
-              (* Execute body *)
+            (* Execute body *)
             execute_stmt loop_env body |> ignore;
-    
-              (* Update variable *)
+  
+            (* Update variable *)
             let next_current = match current with
               | IntVal c -> IntVal (c + step_int)
               | _ -> raise (RuntimeError "Loop variable must be integer")
             in
             update_env loop_env var next_current;
-    
-              (* Repeat *)
+  
+            (* Repeat *)
             loop next_current
         | BoolVal false -> ()
         | _ -> raise (RuntimeError "For loop condition must be boolean")
       in
-    
+  
       loop start_val;
       env
 
-  |VectorDecl (name, size, e) ->
-      let value = eval_expr env e in
-      let vector = match value with
-        | IntVector v when List.length v = size -> value
-        | FloatVector v when List.length v = size -> value
-        | _ -> raise (RuntimeError "Vector declaration size mismatch")
-      in
-      ignore(update_env env name vector);
-      env; (* Update the environment with the new vector *)
-  | MatrixDecl (name, rows, cols, e) ->
-      let value = eval_expr env e in
-      let matrix = match value with
-        | IntMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
-        | FloatMatrix m when List.length m = rows && List.for_all (fun r -> List.length r = cols) m -> value
-        | _ -> raise (RuntimeError "Matrix declaration size mismatch")
-      in
-      ignore(update_env env name matrix);
-      env; (* Update the environment with the new matrix *)
+  
     
   | PrintStmt e ->
       let value = eval_expr env e in
       print_endline (string_of_value value);
-      env;  
-  | _ -> env  
-
+      env
+  | ExprStmt e -> env 
 let execute_program program =
   let global_env = create_env None in 
   match program with

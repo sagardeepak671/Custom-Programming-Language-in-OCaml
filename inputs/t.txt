@@ -1,19 +1,6 @@
-a:=true;
-ans:=0;
-for(i:=3,i<10,1){
-    ans:=ans+1;
-    an2:=false;
-    Print(ans);
-
-}; 
-{
-    temp :=a;
-    intvector v:= 2 [1,2];
-    a:=false;
+int num:=33;
+if (num > 10) then {
+   int a:=1;
+} else {
+    a:=2;
 };
-floatmatrix mm:= 2,2 [[1,2],[3,4]];
-trans := transpose(mm);
-t2:=transpose(trans);
-t33:=mult_mat(mm,t2);
-dett:=determinant(mm);
-invv := inverse_mat(mm);

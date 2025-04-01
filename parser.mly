@@ -2,7 +2,7 @@
 %{
 open Ast 
 %} 
-%token INPUT PRINT ASSIGN PLUS MINUS MULTIPLY DIVIDE ABS
+%token INPUT TXT_FILE PRINT ASSIGN PLUS MINUS MULTIPLY DIVIDE ABS 
 %token IF THEN ELSE FOR WHILE 
 %token INV_BOOL INV_SCALA INV_VEC INV_MAT
 %token DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
@@ -54,36 +54,39 @@ stmt_list:
   | stmt                      { [$1] }
 
 stmt:
-    IDENTIFIER ASSIGN expr       { Assign ($1,  $3) }
-  | print_stmt                   { $1 }
-  | input_stmt                   { $1 }
+  | IDENTIFIER ASSIGN expr            { Assign ($1,$3,None)}
+  | var_type IDENTIFIER ASSIGN expr       { Assign ($2, $4, Some $1) }
+  | print_stmt                   { $1 } 
   | IF LPAREN expr RPAREN THEN stmt ELSE stmt { If ( $3, $6, $8) }
   | IF LPAREN expr RPAREN THEN stmt %prec LOWER_THAN_ELSE { If ( $3, $6, Seq []) }
   | FOR LPAREN IDENTIFIER ASSIGN expr COMMA expr COMMA expr RPAREN stmt { For ($3,  $5,  $7, $9, $11) }
   | WHILE LPAREN expr RPAREN stmt      { While ( $3, $5) }
   | LBRACE stmt_list RBRACE       { Seq $2 }
-  |INT_TYPE_VECTOR IDENTIFIER ASSIGN INT_VAL LBRACKET int_vector_elements RBRACKET 
-      { VectorDecl ($2, $4, ConstIntV $6) }
-  | FLOAT_TYPE_VECTOR IDENTIFIER ASSIGN INT_VAL LBRACKET float_vector_elements RBRACKET 
-      { VectorDecl ($2, $4, ConstV $6) }
-   | INT_TYPE_MATRIX IDENTIFIER ASSIGN INT_VAL COMMA INT_VAL LBRACKET int_matrix_content RBRACKET 
-      { MatrixDecl ($2, $4, $6, ConstIntM $8) }
-  | FLOAT_TYPE_MATRIX IDENTIFIER ASSIGN INT_VAL COMMA INT_VAL LBRACKET float_matrix_content RBRACKET 
-      { MatrixDecl ($2, $4, $6, ConstM $8) }
   | expr                      { ExprStmt ( $1) }
   ;
+var_type:
+  | TYPE_BOOL { Bool }
+  | TYPE_INT { Scalar_Int }
+  | TYPE_FLOAT { Scalar_Float }
+  | INT_TYPE_VECTOR INT_VAL { Vector_Int($2) }
+  | FLOAT_TYPE_VECTOR INT_VAL { Vector_Float($2) }
+  | INT_TYPE_MATRIX INT_VAL COMMA INT_VAL { Matrix_Int($2,$4) }
+  | FLOAT_TYPE_MATRIX INT_VAL COMMA INT_VAL { Matrix_Float($2,$4)}
 print_stmt:
-    PRINT LPAREN expr RPAREN      { PrintStmt ($3) }
-input_stmt:
-    INPUT LPAREN STRING_LITERAL RPAREN { InputStmt (Some $3) }
-  | INPUT LPAREN RPAREN           { InputStmt None }
+    PRINT LPAREN expr RPAREN      { PrintStmt ($3) } 
 expr:
     simple_expr      { $1 }
   | arith_expr       { $1 }
   | comp_expr        { $1 }
   | logic_expr       { $1 }
-  | func_expr        { $1 } 
+  | func_expr        { $1 }
+  | input_expr       { $1 }
+  | vector_expr      { $1 }
+  | matrix_expr      { $1 }
   ;
+input_expr:
+    INPUT LPAREN IDENTIFIER TXT_FILE RPAREN { InputExpr (Some $3) }  
+  | INPUT LPAREN RPAREN           { InputExpr None }
 simple_expr:
     TRUE_VAL                   { T }
   | FALSE_VAL                  { F }
@@ -96,6 +99,14 @@ simple_expr:
   | float_matrix_literal       { ConstM $1 }      
   | LPAREN expr RPAREN         { $2 }
   ;
+vector_expr:
+INT_VAL LBRACKET int_vector_elements RBRACKET { VectorDecl ($1, ConstIntV $3) }
+| INT_VAL LBRACKET float_vector_elements RBRACKET { VectorDecl ($1, ConstV $3) }
+
+matrix_expr:
+INT_VAL COMMA INT_VAL LBRACKET int_matrix_content RBRACKET { MatrixDecl ($1, $3, ConstIntM $5) }
+| INT_VAL COMMA INT_VAL LBRACKET float_matrix_content RBRACKET { MatrixDecl ($1, $3, ConstM $5) }
+
 int_vector_literal:
     LBRACKET int_vector_elements RBRACKET { $2 }
   ;
@@ -162,10 +173,10 @@ func_expr:
   | MAG_VEC LPAREN expr RPAREN                   { Mag $3 }
   | MAG_SCALA LPAREN expr RPAREN                 { Mag $3 }
   | ANGLE_VEC LPAREN expr COMMA expr RPAREN      { Angle ($3, $5) }
-  | ISZERO LPAREN expr RPAREN                { IsZero $3 } 
-  | TRANSPOSE LPAREN expr RPAREN             { Transpose $3 }
+  | ISZERO LPAREN expr RPAREN                    { IsZero $3 } 
+  | TRANSPOSE LPAREN expr RPAREN                 { Transpose $3 }
   | MULT_MAT LPAREN expr COMMA expr RPAREN       { Mult ($3, $5) }
-  | DETERMINANT LPAREN expr RPAREN                   { Det $3 }
+  | DETERMINANT LPAREN expr RPAREN               { Det $3 }
   | INVERSE_MAT LPAREN expr RPAREN               { Inverse $3 }  
   | expr ADD_VECTOR expr                         { Add ($1, $3) }
   | expr ADD_MATRIX expr                         { Add ($1, $3) }

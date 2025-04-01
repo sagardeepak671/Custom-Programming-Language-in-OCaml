@@ -11,15 +11,7 @@ module TypeChecker = struct
   exception Undefined_variable of string
   exception Redeclaration_error of string
 
-  let string_of_type = function
-    | Bool -> "bool"
-    | Scalar_Int -> "int"
-    | Scalar_Float -> "float"
-    | Vector_Int d -> "vector<int>[" ^ string_of_int d ^ "]"
-    | Vector_Float d -> "vector<float>[" ^ string_of_int d ^ "]"
-    | Matrix_Int (r,c) -> "matrix<int>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
-    | Matrix_Float (r,c) -> "matrix<float>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
-  
+
     let create_env parent = 
     { symbol_table = Hashtbl.create 100; parent }
 
@@ -62,8 +54,12 @@ module TypeChecker = struct
     | T | F -> Bool
     | ConstS _ -> Scalar_Float
     | ConstI _ -> Scalar_Int
-    | ConstIntV v -> Vector_Int (List.length v)
-    | ConstV v -> Vector_Float (List.length v)
+    | ConstIntV v -> 
+      if v = [] then raise (Type_error "Empty vector")
+      else Vector_Int (List.length v)
+    | ConstV v -> 
+      if v = [] then raise (Type_error "Empty vector")
+      else Vector_Float (List.length v)
     | ConstIntM m ->
         let rows = List.length m in
         let cols = match m with h::_ -> List.length h | [] -> 0 in
@@ -72,6 +68,29 @@ module TypeChecker = struct
         let rows = List.length m in
         let cols = match m with h::_ -> List.length h | [] -> 0 in
         Matrix_Float (rows, cols)
+    
+    | VectorDecl(size, v) -> 
+      let t = type_of_expr env v in
+      (match t with
+      | Vector_Int d->
+          if d = size then Vector_Int d
+          else raise (Type_error "Vector size does not match the declared size")
+      | Vector_Float d->
+          if d = size then Vector_Float d
+          else raise (Type_error "Vector size does not match the declared size")
+      | _ -> raise (Type_error "Invalid vector declaration: size must be a positive integer and match the vector type"))
+
+    | MatrixDecl(rows, cols, m) ->  
+      let t = type_of_expr env m in
+      (match t with
+      | Matrix_Int (r, c)->
+          if r = rows && c = cols then Matrix_Int (r, c)
+          else raise (Type_error "Matrix dimensions do not match the declared dimensions")
+      | Matrix_Float (r, c) ->
+          if r = rows && c = cols then Matrix_Float (r, c)
+          else raise (Type_error "Matrix dimensions do not match the declared dimensions")
+      | _ -> raise (Type_error "Invalid matrix declaration: dimensions must be positive integers and match the matrix type"))
+ 
     | Var var -> lookup_var env var
     | Add(e1, e2) ->
         let t1 = type_of_expr env e1 in
@@ -152,25 +171,44 @@ module TypeChecker = struct
        | Matrix_Int (r, c) when r = c -> Matrix_Float (r, c)
        | Matrix_Float (r, c) when r = c -> Matrix_Float (r, c)
        | _ -> raise (Type_error ("Invalid Inverse: incompatible type " ^ string_of_type t ^ "😭")))
- 
-
+    | _ -> raise (Type_error "should not reach here its input")
   let rec typecheck_stmt env = function
-    | Assign(var, expr) ->
+  | Assign(var, expr, Some typ) ->
+    let var_type = check_get_var_type env var in
+    (match var_type with
+     | Some t -> raise (Redeclaration_error ("Variable " ^ var ^ " already declared with type " ^ string_of_type t))
+     | None -> ());
+    add_var env var typ;
+    (match expr with
+     | InputExpr _ -> ()
+     | _ ->
+       let expr_type = type_of_expr env expr in
+       if expr_type <> typ then
+         raise (Type_error ("Type mismatch: expected " ^ string_of_type typ ^ " but got " ^ string_of_type expr_type ^ " for variable " ^ var)));
+    env
+  | Assign(var, expr, None) ->
+    let var_type = check_get_var_type env var in
+    (match var_type with
+    | Some t -> ()
+    | None -> raise (Undefined_variable ("Undefined variable: " ^ var)));
+    
+    (match expr with
+    | InputExpr _ -> raise (Type_error "Input expression cannot be assigned without a type")
+    | _ ->
         let expr_type = type_of_expr env expr in
-        add_var env var expr_type; 
-        env
-
+        add_var env var expr_type);
+    env
     | Seq stmts ->
         let block_env = create_env (Some env) in
         let _ = List.fold_left typecheck_stmt block_env stmts in
         env
-    | If(cond, then_branch, else_branch) ->
+    | If(cond, tblock, fblock) ->
         if type_of_expr env cond <> Bool then
           raise (Type_error "If condition must be boolean");
         let then_env = create_env (Some env) in
         let else_env = create_env (Some env) in
-        ignore (typecheck_stmt then_env then_branch);
-        ignore (typecheck_stmt else_env else_branch);
+        ignore (typecheck_stmt then_env tblock);
+        ignore (typecheck_stmt else_env fblock);
         env
 
     | While(cond, body) ->
@@ -196,26 +234,9 @@ module TypeChecker = struct
         ignore (typecheck_stmt loop_env body); 
         env
 
-    | VectorDecl(var, dim, init) ->
-        let init_type = type_of_expr env init in
-        (match init_type with
-         | Vector_Int d when d = dim -> add_var env var (Vector_Int dim)
-         | Vector_Float d when d = dim -> add_var env var (Vector_Float dim)
-         | _ -> raise (Type_error "Vector dimension mismatch"));
-        env
-
-    | MatrixDecl(var, rows, cols, init) ->
-        let init_type = type_of_expr env init in
-        (match init_type with
-         | Matrix_Int (r,c) when r = rows && c = cols -> add_var env var (Matrix_Int (rows,cols))
-         | Matrix_Float (r,c) when r = rows && c = cols -> add_var env var (Matrix_Float (rows,cols))
-         | _ -> raise (Type_error "Matrix dimension mismatch"));
-        env
     | PrintStmt e | ExprStmt e ->
       let _ = type_of_expr env e in
-      env
-    | _ -> failwith "Unimplemented statement type"
-
+      env 
   
     let typecheck_program prog =
       try

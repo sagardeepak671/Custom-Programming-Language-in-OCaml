@@ -1,14 +1,25 @@
 (* ast.ml *)
+(* open type_checker *) (* Uncomment this line if the type_checker module is implemented and available *)
 exception TypeError of string
 (* The type of the AST nodes *)
+
 type types = 
-  | Bool 
-  | Scalar_Int 
-  | Scalar_Float 
-  | Vector_Int of int 
-  | Vector_Float of int 
-  | Matrix_Int of int * int 
-  | Matrix_Float of int * int
+| Bool 
+| Scalar_Int 
+| Scalar_Float 
+| Vector_Int of int 
+| Vector_Float of int 
+| Matrix_Int of int * int 
+| Matrix_Float of int * int
+
+let string_of_type = function
+| Bool -> "bool"
+| Scalar_Int -> "int"
+| Scalar_Float -> "float"
+| Vector_Int d -> "vector<int>[" ^ string_of_int d ^ "]"
+| Vector_Float d -> "vector<float>[" ^ string_of_int d ^ "]"
+| Matrix_Int (r,c) -> "matrix<int>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
+| Matrix_Float (r,c) -> "matrix<float>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
 type expr =  
   | T                         (* Boolean true *)
   | F                         (* Boolean false *)
@@ -29,7 +40,10 @@ type expr =
   | Inv of expr             (* Negation/inversion *)
   | Transpose of expr         (* Transpose *)
   | Mult of expr * expr       (* Matrix multiplication *)
+  | VectorDecl of  int * expr (* Vector statement *)
+  | MatrixDecl of  int * int * expr (* Matrix statement *)
   | Det of expr               (* Determinant *)
+  | InputExpr of string option (* Input expression *)
   | Inverse of expr           (* Matrix inverse *)
   | Eq of expr * expr         (* Equality comparison *)
   | Neq of expr * expr        (* Not equal comparison *)
@@ -38,16 +52,14 @@ type expr =
   | Le of expr * expr         (* Less than or equal comparison *)
   | Ge of expr * expr         (* Greater than or equal comparison *)
 type stmt = 
-    Assign of string * expr          (* x := expr *)
+    Assign of string * expr * (types option)         (* x := expr *)
   | Seq of stmt list                 (* sequence of statements *)
   | If of expr * stmt * stmt         (* if (cond) then stmt else stmt *)
   | While of expr * stmt             (* while (cond) stmt *)
   | For of string * expr * expr * expr * stmt(* for (var from expr to expr) stmt *)
-  | PrintStmt of expr                (* Print statement *)
-  | InputStmt of string option       (* Input statement *)
+  | PrintStmt of expr                (* Print statement *) 
   | ExprStmt of expr                 (* Expression statement *)
-  | VectorDecl of string * int * expr (* Vector statement *)
-  | MatrixDecl of string * int * int * expr (* Matrix statement *)
+
 type program = stmt
 (* printing the AST*)
 let rec string_of_expr e =
@@ -72,7 +84,11 @@ let rec string_of_expr e =
   | Transpose e -> "Transpose(" ^ string_of_expr e ^ ")"
   | Mult(e1,e2) -> "Mult(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Det e -> "Det(" ^ string_of_expr e ^ ")"
+  | VectorDecl(size, e) -> "VectorDecl(" ^ string_of_int size ^ ", " ^ string_of_expr e ^ ")"
+  | MatrixDecl(rows, cols, e) -> "MatrixDecl(" ^ string_of_int rows ^ ", " ^ string_of_int cols ^ ", " ^ string_of_expr e ^ ")"
   | Inverse e -> "Inverse(" ^ string_of_expr e ^ ")"
+  | InputExpr(Some s_val) -> "InputExpr(" ^ s_val ^ ")"
+  | InputExpr None -> "InputExpr()"
   | Eq(e1,e2) -> "Eq(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Neq(e1,e2) -> "Neq(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Lt(e1,e2) -> "Lt(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
@@ -83,7 +99,9 @@ let rec string_of_expr e =
 let rec string_of_stmt ?(indent=0) s =
   let spaces = String.make (indent * 2) ' ' in
   match s with
-  | Assign (id, e) ->spaces ^ "Assign(" ^ id ^ ", " ^ string_of_expr e ^ ")"
+  | Assign(v, e, t) ->spaces ^ "Assign(" ^ v ^ ", " ^ string_of_expr e ^ ", " ^
+      (match t with Some t -> string_of_type t | None -> "None") ^ ")"
+  (* | Assign(v, e, None) ->spaces ^ "Assign(" ^ v ^ ", " ^ string_of_expr e ^ ", None)" *)
   | Seq stmts ->spaces ^ "Seq([\n" ^
       (String.concat ";\n" (List.map (string_of_stmt ~indent:(indent+1)) stmts)) ^
       "\n" ^ spaces ^ "])"
@@ -100,11 +118,7 @@ let rec string_of_stmt ?(indent=0) s =
       string_of_stmt ~indent:(indent+1) s ^ "\n" ^
       spaces ^ ")"
   | PrintStmt e ->spaces ^ "PrintStmt(" ^ string_of_expr e ^ ")"
-  | InputStmt(Some s_val) ->spaces ^ "InputStmt(" ^ s_val ^ ")"
-  | InputStmt None ->spaces ^ "InputStmt()"
   | ExprStmt e ->spaces ^ "ExprStmt(" ^ string_of_expr e ^ ")"
-  | VectorDecl(name, size, e) ->spaces ^ "VectorDecl(" ^ name ^ ", " ^ string_of_int size ^ ", " ^string_of_expr e ^ ")"
-  | MatrixDecl(name, rows, cols, e) ->spaces ^ "MatrixDecl(" ^ name ^ ", " ^ string_of_int rows ^ ", " ^string_of_int cols ^ ", " ^ string_of_expr e ^ ")"
 
 let string_of_ast p = string_of_stmt p
 let print_AST ast =
