@@ -1,6 +1,2 @@
-int num:=33;
-if (num > 10) then {
-   int a:=1;
-} else {
-    a:=2;
-};
+//int num:=33; 
+int b:=2;

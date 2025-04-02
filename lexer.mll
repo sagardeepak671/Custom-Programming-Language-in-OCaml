@@ -56,7 +56,6 @@ rule token = parse
   | "is_zero"                  { ISZERO } 
   | "mult_mat"                 { MULT_MAT } 
   | "inverse_mat"              { INVERSE_MAT } 
-  | "dimension"                { DIMENSION }
   | "transpose"                { TRANSPOSE }
   | "determinant"              { DETERMINANT }
   | "add_vector"               { ADD_VECTOR }

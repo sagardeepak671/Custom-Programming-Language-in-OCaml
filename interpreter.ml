@@ -1,6 +1,13 @@
 (* evaluator.ml *) 
 open Ast
+open Parsing
+open Lexing
+open Lexer
+open Parser
+(* open main *) (* Removed or commented out as 'main' module does not exist *)
 exception RuntimeError of string   
+(* The type of values that can be evaluated *)
+exception ParseError of string
 (* The type of values that can be evaluated *)
 type value =
   | BoolVal of bool
@@ -56,6 +63,7 @@ let debug_env env =
       Printf.printf "- %s : %s\n" k (string_of_value v)  (* Changed from Evaluator *)
     ) env.symbols 
 ;;
+let global_env = create_env None;;
 
 let rec check_and_update_env env var_name new_value =
   match env with
@@ -365,7 +373,11 @@ let eval_mod e1 e2 =
   | IntVal i1, IntVal i2 -> IntVal (i1 mod i2)
   | _ -> raise (RuntimeError "Modulus requires integer values")
 
-(* 8. Evaluation of Expressions *)
+let get_single_input_expression env =
+  match Hashtbl.find_opt env.symbols "INPuTT" with
+  | Some value -> value
+  | None -> raise (RuntimeError "No input value found in the global environment")
+  
 let rec eval_expr env = function
   | T -> BoolVal true
   | F -> BoolVal false
@@ -387,9 +399,7 @@ let rec eval_expr env = function
   | Transpose e ->let value = eval_expr env e in transpose_value value
   | Mult (e1, e2) -> matrix_mult (eval_expr env e1) (eval_expr env e2)
   | Det e -> determinant (eval_expr env e)
-  | Inverse e ->
-      let value = eval_expr env e in
-      matrix_inverse value
+  | Inverse e ->let value = eval_expr env e in matrix_inverse value
   | Eq (e1, e2) -> eq (eval_expr env e1) (eval_expr env e2)
   | Neq (e1, e2) -> neq (eval_expr env e1) (eval_expr env e2)
   | Lt (e1, e2) -> lt (eval_expr env e1) (eval_expr env e2)
@@ -411,25 +421,73 @@ let rec eval_expr env = function
           | _ -> raise (RuntimeError "Matrix declaration size mismatch")) in
       matrix
   | _ -> raise(RuntimeError ("ahaha😭"))
-
+let parse_input lexbuf =
+  try
+    let ast = Parser.program Lexer.token lexbuf in
+    ast
+  with
+  | Lexer.Lexing_error msg ->
+      Printf.eprintf "Lexing error: %s\n" msg;
+      exit 1
+  | Parse_error ->  (* Corrected exception name from Parse_error to Parser.Error *)
+      let pos = Lexing.lexeme_start_p lexbuf in
+      Printf.eprintf "Parse error at line %d, column %d\n"
+        pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
+      exit 1
+  
 and eval_bool env e =
   match eval_expr env e with
   | BoolVal b -> b
   | _ -> raise (RuntimeError "Condition must evaluate to boolean") 
             
 let rec execute_stmt env = function
-  | Assign (id, expr, Some t) ->
-      (*check already in the hashtable of that type*) 
-      let value = eval_expr env expr in
-  (*print value for debugg*) 
-  (*check if the type of value is same as the type of id*)
-      let temp = check_and_update_env (Some(env)) id value in
-      (match temp with 
-       | true -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭"))
-       | false -> ());
-   
-      let value = eval_expr env expr in
-      (match value with 
+  | Assign (id, expr, Some t) -> 
+      let value = 
+        match expr with
+        | InputExpr None ->  
+            print_string "Enter input: ";
+            let line = read_line () in
+            let lexbuf = Lexing.from_string line in
+            let ast = parse_input lexbuf in
+            let input_env = 
+              match ast with
+              | Seq stmts -> List.fold_left execute_stmt global_env stmts
+              | _ -> raise (RuntimeError "Input must be a Seq according to AST")
+            in
+            let temp = 
+              get_single_input_expression input_env
+            in
+            temp
+        | InputExpr (Some filename) ->
+            let file_path = filename ^ ".txt" in
+            if Sys.file_exists file_path then
+              let lines = ref [] in
+              let ic = open_in file_path in
+              try
+          while true do
+            lines := input_line ic :: !lines
+          done;
+          IntVal 0
+              with End_of_file ->
+          close_in ic;
+          let content = String.concat "\n" (List.rev !lines) in
+          let lexbuf = Lexing.from_string content in
+          let ast = parse_input lexbuf in
+          let input_env = 
+            match ast with
+            | Seq stmts -> List.fold_left execute_stmt global_env stmts
+            | _ -> raise (RuntimeError "Input file must contain a Seq according to AST")
+          in
+          let temp = 
+            get_single_input_expression input_env
+          in
+          temp
+            else
+              raise (RuntimeError ("File not found: " ^ file_path))
+        | _ -> eval_expr env expr
+      in
+  (* Type checking logic for the value and the type 't' *)
+      (match value with
        | IntVal _ when t = Scalar_Int -> ()
        | FloatVal _ when t = Scalar_Float -> ()
        | IntVector v when t = Vector_Int (List.length v) -> ()
@@ -437,18 +495,22 @@ let rec execute_stmt env = function
        | IntMatrix m when t = Matrix_Int ((List.length m), (List.length (List.hd m))) -> ()
        | FloatMatrix m when t = Matrix_Float ((List.length m), (List.length (List.hd m))) -> ()
        | BoolVal _ when t = Bool -> ()
-       | _ -> raise (RuntimeError ("Type mismatch: " ^ string_of_value value ^ " 😭"));
+       | _ -> raise (RuntimeError ("Type mismatch: " ^ string_of_value value ^ " 😭"))
       );
+      let temp = check_and_update_env (Some(env)) id value in
+      (match temp with 
+       | true -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭"))
+       | false -> ()); 
+      update_env env id value;  
+      env   
+  | Assign (id, expr, None) ->
+      let value = eval_expr env expr in
+      let temp = check_and_update_env (Some(env)) id value in
+      (match temp with 
+       | true -> ()
+       | false -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭")));
       update_env env id value; (* Update the environment with the new value *)
       env
-  | Assign (id, expr, None) ->
-    let value = eval_expr env expr in
-    let temp = check_and_update_env (Some(env)) id value in
-    (match temp with 
-     | true -> ()
-     | false -> raise (RuntimeError ("Redeclaration error: Variable '" ^ id ^ "' redeclared with type " ^ string_of_value value ^ " 😭")));
-    update_env env id value; (* Update the environment with the new value *)
-    env
   | Seq stmts -> 
         (* Create a new environment for the sequence of statements *)
       let new_env = create_env (Some env) in 
@@ -516,21 +578,23 @@ let rec execute_stmt env = function
   
       loop start_val;
       env
-
-  
-    
   | PrintStmt e ->
       let value = eval_expr env e in
       print_endline (string_of_value value);
       env
-  | ExprStmt e -> env 
-let execute_program program =
-  let global_env = create_env None in 
+  | ExprStmt e -> 
+      let value = eval_expr env e in
+      if Hashtbl.mem global_env.symbols "INPuTT" then Hashtbl.replace global_env.symbols "INPuTT" value
+      else Hashtbl.add global_env.symbols "INPuTT" value;
+      env
+
+let execute_program program = 
   match program with
   | Seq stmts -> List.fold_left execute_stmt global_env stmts
   | _ -> raise (RuntimeError "Program must be a sequence of statements")
 
 let print_INTERPRETED_ENV env = 
+  Hashtbl.remove global_env.symbols "INPuTT";
   Printf.printf "\n<---Final Interpreted Values--> ✅🥳\n";
   Hashtbl.iter (fun k v -> 
       Printf.printf "- %s : %s\n" k (string_of_value v)  

@@ -20,9 +20,9 @@ let parse_input lexbuf =
       Printf.eprintf "Parse error at line %d, column %d\n"
         pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
       exit 1
-  
+ 
   (**AST TREE*)
-  let () =
+let () =
   print_endline "Enter DSL code (press Ctrl+D to finish):\n\n";
   let lexbuf = Lexing.from_channel stdin in
   let ast = parse_input lexbuf in
@@ -40,8 +40,8 @@ let parse_input lexbuf =
 
   (**INTERPRET*)
   try
-  let final_interpreted_env = Interpreter.execute_program ast in 
-  print_INTERPRETED_ENV final_interpreted_env;
+    let final_interpreted_env = Interpreter.execute_program ast in 
+    print_INTERPRETED_ENV final_interpreted_env;
   with
   | Interpreter.RuntimeError msg ->
       Printf.eprintf "Runtime error: %s\n" msg;

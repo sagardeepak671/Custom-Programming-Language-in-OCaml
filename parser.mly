@@ -11,7 +11,7 @@ open Ast
 %token EQ NEQ GT LT GE LE
 %token AND OR NOT
 %token MOD 
-%token ADD_VECTOR SCALE_VECTOR DIMENSION
+%token ADD_VECTOR SCALE_VECTOR 
 %token ADD_MATRIX SCALE_MATRIX MULTIPLY_MATRIX TRANSPOSE DETERMINANT
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMICOLON
 %token <string> STRING_LITERAL
@@ -28,17 +28,17 @@ open Ast
 %left AND
 %left EQ NEQ
 %left LT GT LE GE
-%left MOD INCREMENT DECREMENT
+%left MOD  
 %left ASSIGN
 %left PLUS MINUS ADD_VECTOR ADD_MATRIX
 %left MULTIPLY DIVIDE SCALE_VECTOR SCALE_MATRIX 
 %left MULTIPLY_MATRIX
-%nonassoc UMINUS   
+%nonassoc UMINUS    
 %nonassoc NOT ABS
 %nonassoc DOTPROD_VEC MAG_VEC MAG_SCALA ANGLE_VEC ISZERO
 %nonassoc  MULT_MAT  INVERSE_MAT
 %nonassoc INV_BOOL INV_SCALA INV_VEC INV_MAT
-%nonassoc TRANSPOSE DETERMINANT
+%nonassoc TRANSPOSE DETERMINANT 
 
 %start program
 %type <Ast.program> program
@@ -75,14 +75,14 @@ var_type:
 print_stmt:
     PRINT LPAREN expr RPAREN      { PrintStmt ($3) } 
 expr:
-    simple_expr      { $1 }
+  | matrix_expr      { $1 }
+  | vector_expr      { $1 }
+  | simple_expr      { $1 }
   | arith_expr       { $1 }
   | comp_expr        { $1 }
   | logic_expr       { $1 }
   | func_expr        { $1 }
-  | input_expr       { $1 }
-  | vector_expr      { $1 }
-  | matrix_expr      { $1 }
+  | input_expr       { $1 } 
   ;
 input_expr:
     INPUT LPAREN IDENTIFIER TXT_FILE RPAREN { InputExpr (Some $3) }  
@@ -91,8 +91,8 @@ simple_expr:
     TRUE_VAL                   { T }
   | FALSE_VAL                  { F }
   | FLOAT_VAL                  { ConstS $1 }
-  | INT_VAL                    { ConstI ($1) }
   | IDENTIFIER                 { Var $1 } 
+  | INT_VAL                    { ConstI ($1) }
   | int_vector_literal         { ConstIntV $1 }   
   | float_vector_literal       { ConstV $1 }      
   | int_matrix_literal         { ConstIntM $1 }   
@@ -108,25 +108,25 @@ INT_VAL COMMA INT_VAL LBRACKET int_matrix_content RBRACKET { MatrixDecl ($1, $3,
 | INT_VAL COMMA INT_VAL LBRACKET float_matrix_content RBRACKET { MatrixDecl ($1, $3, ConstM $5) }
 
 int_vector_literal:
-    LBRACKET int_vector_elements RBRACKET { $2 }
+    LBRACKET int_vector_elements RBRACKET { $2 } 
   ;
 float_vector_literal:
-    LBRACKET float_vector_elements RBRACKET { $2 }
+    LBRACKET float_vector_elements RBRACKET { $2 } 
   ;
 int_vector_elements:
-    INT_VAL                          { [$1] }
-  | MINUS INT_VAL                  { [(-$2)] }
   | INT_VAL COMMA int_vector_elements { $1 :: $3 }
   | MINUS INT_VAL COMMA int_vector_elements { (-$2) :: $4 }
+  | INT_VAL                          { [$1] }
+  | MINUS INT_VAL                     { [-$2] }
   ;
 float_vector_elements:
-    FLOAT_VAL                               { [$1] }
+  | MINUS FLOAT_VAL COMMA float_vector_elements { (-1.0 *. $2) :: $4 }
+  | FLOAT_VAL COMMA float_vector_elements    { $1 :: $3 } 
+  // | MINUS INT_VAL COMMA float_vector_elements { (-1.0 *. float_of_int $2) :: $4 }
   | MINUS FLOAT_VAL                        { [(-1.0 *. $2)] }
-  | FLOAT_VAL COMMA float_vector_elements    { $1 :: $3 }
-  | MINUS INT_VAL                        { [(-1.0 *. float_of_int $2)] }
-  | INT_VAL                                 { [float_of_int $1] }
-  | MINUS INT_VAL COMMA float_vector_elements { (-1.0 *. float_of_int $2) :: $4 }
-  | INT_VAL COMMA float_vector_elements      { (float_of_int $1) :: $3 }
+  | FLOAT_VAL                               { [$1] }
+  // | INT_VAL                                 { [float_of_int $1] }
+  // | MINUS INT_VAL                        { [(-1.0 *. float_of_int $2)] }
   ;
 int_matrix_literal:
     LBRACKET int_matrix_content RBRACKET { $2 }
