@@ -171,7 +171,19 @@ module TypeChecker = struct
        | Matrix_Int (r, c) when r = c -> Matrix_Float (r, c)
        | Matrix_Float (r, c) when r = c -> Matrix_Float (r, c)
        | _ -> raise (Type_error ("Invalid Inverse: incompatible type " ^ string_of_type t ^ "😭")))
+    | AccessV(_, i) -> 
+      (match type_of_expr env i with 
+      | Scalar_Int -> Scalar_Float
+      | _ -> raise (Type_error "Access index must be an integer"))
+    | AccessM(_, i,j) ->
+      let t1 = type_of_expr env i in
+      if t1 <> Scalar_Int then raise (Type_error "Row index must be an integer")
+      else 
+        let t2 = type_of_expr env j in
+        if t2 <> Scalar_Int then raise (Type_error "Column index must be an integer")
+        else Scalar_Float 
     | _ -> raise (Type_error "should not reach here its input")
+
   let rec typecheck_stmt env = function
   | Assign(var, expr, Some typ) ->
     let var_type = check_get_var_type env var in

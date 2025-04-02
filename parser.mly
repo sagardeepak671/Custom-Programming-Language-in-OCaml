@@ -23,7 +23,7 @@ open Ast
  
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE 
- 
+  
 %left OR
 %left AND
 %left EQ NEQ
@@ -54,15 +54,15 @@ stmt_list:
   | stmt                      { [$1] }
 
 stmt:
-  | IDENTIFIER ASSIGN expr            { Assign ($1,$3,None)}
+  | IDENTIFIER ASSIGN expr                { Assign ($1,$3,None)}
   | var_type IDENTIFIER ASSIGN expr       { Assign ($2, $4, Some $1) }
-  | print_stmt                   { $1 } 
+  | print_stmt                            { $1 } 
   | IF LPAREN expr RPAREN THEN stmt ELSE stmt { If ( $3, $6, $8) }
   | IF LPAREN expr RPAREN THEN stmt %prec LOWER_THAN_ELSE { If ( $3, $6, Seq []) }
   | FOR LPAREN IDENTIFIER ASSIGN expr COMMA expr COMMA expr RPAREN stmt { For ($3,  $5,  $7, $9, $11) }
-  | WHILE LPAREN expr RPAREN stmt      { While ( $3, $5) }
-  | LBRACE stmt_list RBRACE       { Seq $2 }
-  | expr                      { ExprStmt ( $1) }
+  | WHILE LPAREN expr RPAREN stmt         { While ( $3, $5) }
+  | LBRACE stmt_list RBRACE               { Seq $2 }
+  | expr                                  { ExprStmt ( $1) }
   ;
 var_type:
   | TYPE_BOOL { Bool }
@@ -76,42 +76,32 @@ print_stmt:
     PRINT LPAREN expr RPAREN      { PrintStmt ($3) } 
 expr:
   | matrix_expr      { $1 }
-  | vector_expr      { $1 }
+  | vector_expr      { $1 } 
   | simple_expr      { $1 }
   | arith_expr       { $1 }
   | comp_expr        { $1 }
   | logic_expr       { $1 }
   | func_expr        { $1 }
   | input_expr       { $1 } 
+  | access_vector_expr { $1 }
+  | access_matrix_expr { $1 }
   ;
 input_expr:
-    INPUT LPAREN IDENTIFIER TXT_FILE RPAREN { InputExpr (Some $3) }  
-  | INPUT LPAREN RPAREN           { InputExpr None }
-simple_expr:
-    TRUE_VAL                   { T }
-  | FALSE_VAL                  { F }
-  | FLOAT_VAL                  { ConstS $1 }
-  | IDENTIFIER                 { Var $1 } 
-  | INT_VAL                    { ConstI ($1) }
-  | int_vector_literal         { ConstIntV $1 }   
-  | float_vector_literal       { ConstV $1 }      
-  | int_matrix_literal         { ConstIntM $1 }   
-  | float_matrix_literal       { ConstM $1 }      
-  | LPAREN expr RPAREN         { $2 }
-  ;
+  INPUT LPAREN IDENTIFIER TXT_FILE RPAREN { InputExpr (Some $3) }  
+  | INPUT LPAREN RPAREN                     { InputExpr None }
 vector_expr:
-INT_VAL LBRACKET int_vector_elements RBRACKET { VectorDecl ($1, ConstIntV $3) }
-| INT_VAL LBRACKET float_vector_elements RBRACKET { VectorDecl ($1, ConstV $3) }
-
+LPAREN INT_VAL LBRACKET int_vector_elements RBRACKET RPAREN { VectorDecl ($2, ConstIntV $4) }
+| LPAREN INT_VAL LBRACKET float_vector_elements RBRACKET RPAREN { VectorDecl ($2, ConstV $4) }
+; 
 matrix_expr:
-INT_VAL COMMA INT_VAL LBRACKET int_matrix_content RBRACKET { MatrixDecl ($1, $3, ConstIntM $5) }
-| INT_VAL COMMA INT_VAL LBRACKET float_matrix_content RBRACKET { MatrixDecl ($1, $3, ConstM $5) }
-
+LPAREN INT_VAL COMMA INT_VAL LBRACKET int_matrix_content RBRACKET RPAREN { MatrixDecl ($2, $4, ConstIntM $6) }
+| LPAREN INT_VAL COMMA INT_VAL LBRACKET float_matrix_content RBRACKET RPAREN { MatrixDecl ($2, $4, ConstM $6) }
+;
 int_vector_literal:
-    LBRACKET int_vector_elements RBRACKET { $2 } 
+  LBRACKET int_vector_elements RBRACKET { $2 } 
   ;
 float_vector_literal:
-    LBRACKET float_vector_elements RBRACKET { $2 } 
+  LBRACKET float_vector_elements RBRACKET { $2 } 
   ;
 int_vector_elements:
   | INT_VAL COMMA int_vector_elements { $1 :: $3 }
@@ -142,6 +132,20 @@ float_matrix_content:
     LBRACKET float_vector_elements RBRACKET { [$2] }
   | LBRACKET float_vector_elements RBRACKET COMMA float_matrix_content { $2 :: $5 }
   ;
+simple_expr:
+    TRUE_VAL                   { T }
+  | FALSE_VAL                  { F }
+  | FLOAT_VAL                  { ConstS $1 }
+  | IDENTIFIER                 { Var $1 } 
+  | INT_VAL                    { ConstI ($1) }
+  | int_vector_literal         { ConstIntV $1 }   
+  | float_vector_literal       { ConstV $1 }      
+  | int_matrix_literal         { ConstIntM $1 }   
+  | float_matrix_literal       { ConstM $1 }      
+  | LPAREN expr RPAREN         { $2 }
+  ;
+
+
 arith_expr:
     expr PLUS expr           { Add ($1, $3) }
   | expr MINUS expr          { Add ($1, Inv $3) }
@@ -183,5 +187,10 @@ func_expr:
   | expr SCALE_VECTOR expr                       { ScalProd ($1, $3) }
   | expr SCALE_MATRIX expr                       { ScalProd ($1, $3) }
   | expr MULTIPLY_MATRIX expr                    { Mult ($1, $3) }
+  ;
+access_vector_expr:
+    IDENTIFIER LBRACKET expr RBRACKET { AccessV ($1, $3) }
+access_matrix_expr:
+    IDENTIFIER LBRACKET expr COMMA expr RBRACKET { AccessM ($1, $3, $5) } 
   ;
 %%

@@ -1,2 +1,6 @@
-//int num:=33; 
-int b:=2;
+floatmatrix 3,3 a:= (3,3[
+  [2.0, -1.0, 0.0],
+  [-1.0, 2.0, -1.0],
+  [0.0, -1.0, 2.0]
+] );
+floatmatrix 3,3 b:= inverse_mat(a);

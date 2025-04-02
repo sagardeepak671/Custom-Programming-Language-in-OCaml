@@ -51,6 +51,9 @@ type expr =
   | Gt of expr * expr         (* Greater than comparison *)
   | Le of expr * expr         (* Less than or equal comparison *)
   | Ge of expr * expr         (* Greater than or equal comparison *)
+  | AccessV of string * expr  (* Accessing a vector element *)
+  | AccessM of string * expr *expr (* Accessing a matrix element *)
+
 type stmt = 
     Assign of string * expr * (types option)         (* x := expr *)
   | Seq of stmt list                 (* sequence of statements *)
@@ -95,6 +98,8 @@ let rec string_of_expr e =
   | Gt(e1,e2) -> "Gt(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Le(e1,e2) -> "Le(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | Ge(e1,e2) -> "Ge(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
+  | AccessV(s, e) -> "AccessV(" ^ s ^ ", " ^ string_of_expr e ^ ")"
+  | AccessM(s, e1, e2) -> "AccessM(" ^ s ^ ", " ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
 
 let rec string_of_stmt ?(indent=0) s =
   let spaces = String.make (indent * 2) ' ' in
