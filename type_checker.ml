@@ -120,6 +120,8 @@ module TypeChecker = struct
         (match (t1, t2) with
          | (Vector_Int d1, Vector_Int d2) when d1 = d2 -> Scalar_Int
          | (Vector_Float d1, Vector_Float d2) when d1 = d2 -> Scalar_Float
+         | (Scalar_Int,Scalar_Int) -> Scalar_Int
+         | (Scalar_Float,Scalar_Float) -> Scalar_Float
          | _ -> raise (Type_error ("Invalid dot product: incompatible types " ^ string_of_type t1 ^ " and " ^ string_of_type t2 ^ "😭")) )
     | Mag e ->
         let t1 = type_of_expr env e in

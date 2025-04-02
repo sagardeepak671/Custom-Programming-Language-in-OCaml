@@ -1314,7 +1314,7 @@ let yyact = [|
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'expr) in
     Obj.repr(
 # 153 "parser.mly"
-                             ( ScalProd (_1, Inv _3) )
+                             ( DotProd (_1,_3) )
 # 1319 "parser.ml"
                : 'arith_expr))
 ; (fun __caml_parser_env ->

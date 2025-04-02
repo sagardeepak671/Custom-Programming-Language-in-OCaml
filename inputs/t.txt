@@ -1,6 +1,9 @@
-floatmatrix 3,3 a:= (3,3[
-  [2.0, -1.0, 0.0],
-  [-1.0, 2.0, -1.0],
-  [0.0, -1.0, 2.0]
-] );
-floatmatrix 3,3 b:= inverse_mat(a);
+int a:=2/3;
+int b:=23/3;
+int c:= -2/3;
+int d:= -23/3;
+float e:=2.0/3.0;
+float f:=23.0/3.0;
+float g:=-2.0/3.0;
+float h:=-23.0/0.0;
+float i:=-23.0/3.0;

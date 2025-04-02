@@ -150,7 +150,7 @@ arith_expr:
     expr PLUS expr           { Add ($1, $3) }
   | expr MINUS expr          { Add ($1, Inv $3) }
   | expr MULTIPLY expr       { ScalProd ($1, $3) }
-  | expr DIVIDE expr         { ScalProd ($1, Inv $3) }
+  | expr DIVIDE expr         { DotProd ($1,$3) }
   | MINUS expr %prec UMINUS  { Inv $2 }
   | expr MOD expr          { Mod ($1, $3) } 
   ;

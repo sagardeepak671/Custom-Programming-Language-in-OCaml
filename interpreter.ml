@@ -127,6 +127,10 @@ let dot_prod v1 v2 =
   match (v1, v2) with
   | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->IntVal (List.fold_left2 (fun acc a b -> acc + a * b) 0 v1 v2)
   | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->FloatVal (List.fold_left2 (fun acc a b -> acc +. a *. b) 0.0 v1 v2)
+  | IntVal v1, IntVal v2 when v2 <> 0 -> IntVal (v1 / v2)
+  | IntVal _, IntVal 0 -> raise (RuntimeError "Division by zero is not allowed for integers 😭")
+  | FloatVal v1, FloatVal v2 when abs_float v2 > 1e-6 -> FloatVal (v1 /. v2)
+  | FloatVal _, FloatVal v2 when abs_float v2 <= 1e-6 -> raise (RuntimeError "Division by zero is not allowed for floats 😭")
   | _ -> raise (RuntimeError ("Invalid dot product operands: cannot compute dot product of " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
     
 let magnitude v = 
