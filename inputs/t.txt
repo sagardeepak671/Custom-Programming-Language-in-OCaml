@@ -1,9 +1,22 @@
-int a:=2/3;
-int b:=23/3;
-int c:= -2/3;
-int d:= -23/3;
-float e:=2.0/3.0;
-float f:=23.0/3.0;
-float g:=-2.0/3.0;
-float h:=-23.0/0.0;
-float i:=-23.0/3.0;
+int a:=2;
+int b:=3;
+if(a<b)then{
+    Print(a);
+}else{
+    Print(b);
+};
+int c:=a+b;
+Print(c);
+int i:=2;
+bool flag:=true;
+while(i<10){
+    a:=a+1;
+    i:=i+1;
+};
+if(flag)then{
+    Print(a);
+}else{ 
+    
+        Print(b);
+    };
+Print(a);

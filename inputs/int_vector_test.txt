@@ -1,12 +1,14 @@
-intvector 3 a := 3 [1,-2,-3];
+intvector 3 a := (3 [1,-2,-3]);
 Print(a);
-intvector 3 b := 3 [1,43,3];
-intvector 4 c := 4 [1,2,3,4];
+intvector 3 b :=( 3 [1,43,3]);
+intvector 4 c :=( 4 [1,2,3,4]);
 intvector 3 d := inv_vec(a);
 int e := dotprod_vec(a,b);
 intvector 3 f := a*2; 
 float g:= abs(a); 
-intvector 3 h:= 3 [0,0,0];
+intvector 3 h:= (3 [0,0,0]);
 float ang:= angle_vec(a,b);
 bool is_zer := is_zero(h);
 bool is_e1 := a==b;
+floatvector 2 v := (2 [1.0,2.0]);
+float v1:=v[1];     //accessing 

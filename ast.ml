@@ -1,7 +1,5 @@
 (* ast.ml *)
-(* open type_checker *) (* Uncomment this line if the type_checker module is implemented and available *)
 exception TypeError of string
-(* The type of the AST nodes *)
 
 type types = 
 | Bool 
@@ -12,14 +10,18 @@ type types =
 | Matrix_Int of int * int 
 | Matrix_Float of int * int
 
-let string_of_type = function
-| Bool -> "bool"
-| Scalar_Int -> "int"
-| Scalar_Float -> "float"
-| Vector_Int d -> "vector<int>[" ^ string_of_int d ^ "]"
-| Vector_Float d -> "vector<float>[" ^ string_of_int d ^ "]"
-| Matrix_Int (r,c) -> "matrix<int>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
-| Matrix_Float (r,c) -> "matrix<float>[" ^ string_of_int r ^ "," ^ string_of_int c ^ "]"
+(**Just_for_Printing*)
+let string_of_type t = 
+  match t with
+  | Bool -> "Bool"
+  | Scalar_Int -> "Scalar_Int"
+  | Scalar_Float -> "Scalar_Float"
+  | Vector_Int n -> "Vector_Int(" ^ string_of_int n ^ ")"
+  | Vector_Float n -> "Vector_Float(" ^ string_of_int n ^ ")"
+  | Matrix_Int (r, c) -> "Matrix_Int(" ^ string_of_int r ^ ", " ^ string_of_int c ^ ")"
+  | Matrix_Float (r, c) -> "Matrix_Float(" ^ string_of_int r ^ ", " ^ string_of_int c ^ ")"
+  
+
 type expr =  
   | T                         (* Boolean true *)
   | F                         (* Boolean false *)

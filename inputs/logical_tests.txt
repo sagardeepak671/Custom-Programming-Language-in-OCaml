@@ -1,0 +1,20 @@
+bool a:= true;
+bool b:= false;
+bool c:= (a&&b)||true && a ;
+Print(c);
+if(a)then{
+    b:=true || a; 
+}else{
+    b:=false;
+};
+Print(b);
+b:=b&&a&&false;
+Print(b);
+b:=b+true;
+Print(b);
+
+int aa:=3;
+int bb:=23;
+if(aa<=bb)then{
+    b:=false;
+};

@@ -1,0 +1,17 @@
+floatvector 5 vec := Input();
+
+Print(vec); 
+// Check if the vector is sorted
+bool isSorted := true;
+for (i:=0,i<4,1) {
+    if (vec[i] > vec[i+1]) then {
+        isSorted := false;
+        i:=5; // Break the loop
+    };
+};
+
+if (isSorted) then {
+    Print(true);
+} else {
+    Print(false);
+};

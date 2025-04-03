@@ -1,0 +1,22 @@
+int a:=2/3;
+int b:=23/3;
+int c:= -2/3;
+int d:= -23/3;
+float e:=2.0/3.0;
+float f:=23.0/3.0;
+float g:=-2.0/3.0;
+float h:=-23.0/0.0;
+// int a:=2;   // redeclaration error
+
+// c:= true;   // redeclaration with diff type error
+
+//float i:=-23.0/3.0;  //diviide by zero 
+
+if(a<2)then{
+    b:=2;
+    int temp = -1;
+}else{
+    b:=23;
+    bool temp=true;
+};
+//Print(temp);  // not is scope error

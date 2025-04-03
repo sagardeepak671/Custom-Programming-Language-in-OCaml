@@ -1,0 +1,17 @@
+int a:= 2;
+a:=a+2--2;
+Print(a);
+a:=a/2;
+Print(a);
+//a:=a+true;   // error 
+a:= - - - - -a;
+a:= -a+-a+2;
+Print(a);
+//a:= a+ -+3;  // parsing error
+//a:=1.0*a;      // type error
+//int a:=32;          // redeclaration error
+a:=-23;
+int b:= abs(a);
+Print(b);
+int c:= a%2;
+Print(c);

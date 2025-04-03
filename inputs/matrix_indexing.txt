@@ -1,0 +1,4 @@
+floatmatrix 2,2 x := [[3.,1.],[1.,1.]] ;
+Print(x);
+float a := x[0,0] ;
+Print(a);

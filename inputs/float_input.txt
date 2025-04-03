@@ -1,0 +1,4 @@
+float a:=Input(ip.txt);
+int b:= Input(ip.txt);
+int c:= Input(ip.txt);
+int d:= Input();

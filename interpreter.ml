@@ -97,6 +97,7 @@ let add_values v1 v2 =
   | FloatVector a, FloatVector b when List.length a = List.length b -> FloatVector (List.map2 (+.) a b)
   | IntMatrix a, IntMatrix b when matrix_dims_equal a b ->IntMatrix (List.map2 (List.map2 (+)) a b)
   | FloatMatrix a, FloatMatrix b when matrix_dims_equal a b ->FloatMatrix (List.map2 (List.map2 (+.)) a b)
+  | BoolVal a, BoolVal b -> BoolVal (a || b) (* Assuming addition for booleans is logical OR *)
   | _ -> raise (RuntimeError ("Invalid addition operands: cannot add " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ "😭"))
       
 let inv_value = function
@@ -123,8 +124,7 @@ let scal_prod v1 v2 =
   | BoolVal b, BoolVal b2 -> BoolVal (b && b2)
   | _ -> raise (RuntimeError ("Invalid scalar product operands: cannot compute scalar product of " ^ string_of_value v1 ^ " and " ^ string_of_value v2 ^ " 😭"))
   
-let dot_prod v1 v2 =
-  match (v1, v2) with
+let dot_prod v1 v2 = match (v1, v2) with
   | IntVector v1, IntVector v2 when List.length v1 = List.length v2 ->IntVal (List.fold_left2 (fun acc a b -> acc + a * b) 0 v1 v2)
   | FloatVector v1, FloatVector v2 when List.length v1 = List.length v2 ->FloatVal (List.fold_left2 (fun acc a b -> acc +. a *. b) 0.0 v1 v2)
   | IntVal v1, IntVal v2 when v2 <> 0 -> IntVal (v1 / v2)
@@ -279,9 +279,7 @@ let ge v1 v2 = match (v1, v2) with
 let eval_mod e1 e2 = match (e1,e2) with
   | IntVal i1, IntVal i2 -> IntVal (i1 mod i2)  | _ -> raise (RuntimeError ("Modulus requires integer values: cannot compute modulus of " ^ string_of_value e1 ^ " and " ^ string_of_value e2 ^ " 😭"))
 
-
-
-(* Gaussian elimination based matrix inversion for float matrices *)
+(* finding the inverse *)
 let matrix_inverse_gauss (m: float list list) =
   let n = List.length m in
   (* Augment m with the identity matrix *)
@@ -343,7 +341,7 @@ let rec eval_expr env = function
   | Inverse e ->
       let value = eval_expr env e in
       (match value with  
-      | FloatMatrix m -> FloatMatrix (matrix_inverse_gauss m)
+      | FloatMatrix m when List.length m = List.length (List.hd m) -> FloatMatrix (matrix_inverse_gauss m)
       | _ -> raise (RuntimeError ("Inverse requires a matrix: cannot invert " ^ string_of_value value ^ " 😭")))
   | Eq (e1, e2) -> eq (eval_expr env e1) (eval_expr env e2)
   | Neq (e1, e2) -> neq (eval_expr env e1) (eval_expr env e2)
@@ -389,7 +387,7 @@ let parse_input lexbuf =
       exit 1
   | Parse_error ->  (* Corrected exception name from Parse_error to Parser.Error *)
       let pos = Lexing.lexeme_start_p lexbuf in
-      Printf.eprintf "Parse error at line %d, column %d\n"
+      Printf.eprintf "Input Parse error at line %d, column %d\n"
         pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
       exit 1
   
@@ -404,7 +402,7 @@ let rec execute_stmt env = function
         match expr with
         | InputExpr None ->  
             print_string "Enter input: ";
-            let line = read_line () in
+            let line =  read_line () in
             let lexbuf = Lexing.from_string line in
             let input_ast = parse_input lexbuf in
             let input_env = match input_ast with

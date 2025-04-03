@@ -11,7 +11,6 @@ module TypeChecker = struct
   exception Undefined_variable of string
   exception Redeclaration_error of string
 
-
     let create_env parent = 
     { symbol_table = Hashtbl.create 100; parent }
 
@@ -54,21 +53,22 @@ module TypeChecker = struct
     | T | F -> Bool
     | ConstS _ -> Scalar_Float
     | ConstI _ -> Scalar_Int
-    | ConstIntV v -> 
-      if v = [] then raise (Type_error "Empty vector")
-      else Vector_Int (List.length v)
     | ConstV v -> 
       if v = [] then raise (Type_error "Empty vector")
       else Vector_Float (List.length v)
-    | ConstIntM m ->
-        let rows = List.length m in
-        let cols = match m with h::_ -> List.length h | [] -> 0 in
-        Matrix_Int (rows, cols)
+    | ConstIntV v -> 
+      if v = [] then raise (Type_error "Empty vector")
+      else Vector_Int (List.length v)
     | ConstM m ->
         let rows = List.length m in
         let cols = match m with h::_ -> List.length h | [] -> 0 in
         Matrix_Float (rows, cols)
+    | ConstIntM m ->
+        let rows = List.length m in
+        let cols = match m with h::_ -> List.length h | [] -> 0 in
+        Matrix_Int (rows, cols)
     
+    | Var v -> lookup_var env v
     | VectorDecl(size, v) -> 
       let t = type_of_expr env v in
       (match t with
@@ -91,7 +91,6 @@ module TypeChecker = struct
           else raise (Type_error "Matrix dimensions do not match the declared dimensions")
       | _ -> raise (Type_error "Invalid matrix declaration: dimensions must be positive integers and match the matrix type"))
  
-    | Var var -> lookup_var env var
     | Add(e1, e2) ->
         let t1 = type_of_expr env e1 in
         let t2 = type_of_expr env e2 in

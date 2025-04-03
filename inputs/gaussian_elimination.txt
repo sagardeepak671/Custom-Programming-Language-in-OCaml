@@ -1,0 +1,14 @@
+matrix 2,2 m := input(./input_files/matrix_input.txt);
+vector 2 b := [1.,1.];
+
+if mag(m)!=0. then {
+    matrix 2,2 inv_m := inv(m);
+    print(inv_m);
+    matrix 2,2 trans_m := transpose(inv_m);
+    print(trans_m);
+    vector 2 v := b * trans_m ;
+    print(v);
+}else{
+    bool ans:=false;
+    print(ans);
+};

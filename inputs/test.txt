@@ -1,34 +1,7 @@
-bool b:=true;
-{
-    bool c:=false;
-    {
-        int a:=2;
-    };
-};
-int e:=3;
-{
-    int d:=4;
-};
-int f:=5;
-{
-    int g:=6;
-     f:=43;{
-        int h:=7;
-        {
-            int i:=8;
-            {
-                 f:=696969;
-                {
-                   f:=39393;
-                  if(true)then{
-                     f:=2200;
-                    b:=true;
-                  }; 
-                };
-            };
-            e:=69;
-        };
-    }; 
-    b:=false;
-};
-float zz:=23.2;
+float a:=23.2;
+bool b:=false;
+//int c:=b;
+floatvector 2 cc:= (2 [1.,2.]);
+intvector 2 dd:= (2 [1,2]);
+intvector 2 ee:= (2 [1,2]);
+dd := dd+ee-dd+ee+(5*ee);

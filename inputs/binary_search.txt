@@ -1,0 +1,20 @@
+floatvector 6 vec := Input();
+int left := 0;
+int right := 5;
+int mid := (left + right)/2; 
+
+float key := Input();
+while (left<=right) {
+    mid := (left + right)/2;
+    if (vec[mid] == key) then {
+        left:= right +2;
+    }else{
+    if( vec[mid] < key )then {
+            left := mid + 1;
+        } else {
+            right := mid - 1;
+        };
+    }; 
+};
+
+Print(mid);
