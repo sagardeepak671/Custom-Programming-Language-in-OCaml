@@ -618,6 +618,23 @@ function browserFallbackRun(text) {
     variables: declarations.map(name => ({ name, type: 'browser', value: '' })),
     millis: Math.max(1, Math.round(performance.now() - started)), browserFallback: true };
 }
+function browserFallbackError(error, text) {
+  const position = Math.max(0, error && error.message ? text.indexOf(error.message.match(/'([^']+)'/)?.[1] || '') : 0);
+  const before = text.slice(0, position);
+  return {
+    output: '',
+    variables: [],
+    millis: 1,
+    error: {
+      stage: 'Runtime',
+      line: before.split('\n').length,
+      column: position - before.lastIndexOf('\n'),
+      message: error && error.message ? error.message : String(error),
+      trace: [],
+    },
+    browserFallback: true,
+  };
+}
 // Parses the active tab's text as it is in the editor, as the file it belongs to (its imports
 // resolve relative to it), with the unsaved texts of the other tabs standing in for their
 // files on disk. A result is dropped when a newer parse was started or the tab changed.
@@ -787,12 +804,22 @@ async function runNow() {
       applyRunResult({ ...await response.json(), unsaved }, tab);
     } catch (e) {
       if (tab.kind !== 'scratch') throw e;
-      applyRunResult({ ...browserFallbackRun(text), unsaved }, tab);
-      runStatus.textContent += ' · browser fallback';
+      try {
+        applyRunResult({ ...browserFallbackRun(text), unsaved }, tab);
+        runStatus.textContent += ' · browser fallback';
+      } catch (fallbackError) {
+        applyRunResult({ ...browserFallbackError(fallbackError, text), unsaved }, tab);
+        runStatus.textContent += ' · browser fallback';
+      }
     }
   } catch (e) {
-    runStatus.textContent = 'server unreachable';
-    outputBox.textContent = `Cannot reach the mydsl server (${e.message}). Is "./mydsl --serve" still running?`;
+    if (tab.kind === 'scratch') {
+      applyRunResult({ ...browserFallbackError(e, text), unsaved }, tab);
+      runStatus.textContent += ' · browser fallback';
+    } else {
+      runStatus.textContent = 'server unreachable';
+      outputBox.textContent = `Cannot reach the mydsl server (${e.message}).`;
+    }
   } finally {
     runButton.disabled = false;
   }
