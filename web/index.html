@@ -581,6 +581,43 @@ function computeMarks() {
 }
 
 // ---- talking to the C++ parser -----------------------------------------------------
+// GitHub Pages cannot host the native mydsl HTTP server. Scratch programs use this small
+// browser-side fallback there; mydsl --serve remains authoritative when available.
+function browserTokens(text) {
+  const tokens = [];
+  const pattern = /\/\/[^\n]*|"(?:\\.|[^"\\])*"|(?:\d+\.\d+|\d+)|[A-Za-z_]\w*|<=|>=|==|!=|:=|[{}();,+\-*/<>]/g;
+  let match;
+  while ((match = pattern.exec(text))) {
+    if (match[0].startsWith('//')) continue;
+    const begin = match.index, end = begin + match[0].length;
+    const line = text.slice(0, begin).split('\n').length;
+    const column = begin - text.lastIndexOf('\n', begin - 1);
+    const endLine = text.slice(0, end).split('\n').length;
+    const endColumn = end - text.lastIndexOf('\n', end - 1);
+    const value = match[0];
+    const kind = /^"/.test(value) ? 'string' : /^\d/.test(value) ? 'number' :
+      /^[A-Za-z_]/.test(value) ? 'word' : 'symbol';
+    tokens.push({ kind, text: value, begin: { line, column }, end: { line: endLine, column: endColumn } });
+  }
+  const line = text.split('\n').length, column = text.length - text.lastIndexOf('\n');
+  tokens.push({ kind: 'end', text: '', begin: { line, column }, end: { line, column } });
+  return tokens;
+}
+function browserFallbackParse(text) {
+  return { tokens: browserTokens(text), ast: [], functions: [], error: null, browserFallback: true };
+}
+function browserFallbackRun(text) {
+  const started = performance.now(), declarations = [];
+  let source = text.replace(/\/\/[^\n]*/g, '');
+  source = source.replace(/\b(?:int|float|bool|string|intvector|floatvector|intmatrix|floatmatrix)\s+([A-Za-z_]\w*)\s*:=/g,
+    (_, name) => { declarations.push(name); return `let ${name} =`; });
+  source = source.replace(/\bPrint\s*\(/g, '__print(').replace(/:=/g, '=');
+  const output = [];
+  new Function('__print', `"use strict";\n${source}`)(value => output.push(String(value)));
+  return { output: output.length ? output.join('\n') + '\n' : '',
+    variables: declarations.map(name => ({ name, type: 'browser', value: '' })),
+    millis: Math.max(1, Math.round(performance.now() - started)), browserFallback: true };
+}
 // Parses the active tab's text as it is in the editor, as the file it belongs to (its imports
 // resolve relative to it), with the unsaved texts of the other tabs standing in for their
 // files on disk. A result is dropped when a newer parse was started or the tab changed.
@@ -597,10 +634,13 @@ async function parseNow() {
     data = await response.json();
   } catch (e) {
     if (serial !== parseSerial) return;
-    status.classList.remove('busy'); status.textContent = 'server unreachable';
-    errorBox.textContent = `Cannot reach the mydsl server (${e.message}). Is "./mydsl --serve" still running?`;
-    errorBox.classList.add('show', 'network');
-    return;
+    if (tab.kind !== 'scratch') {
+      status.classList.remove('busy'); status.textContent = 'server unreachable';
+      errorBox.textContent = `Cannot reach the mydsl server (${e.message}). Scratch programs still support browser-side arithmetic.`;
+      errorBox.classList.add('show', 'network');
+      return;
+    }
+    data = browserFallbackParse(text);
   }
   if (serial !== parseSerial || text !== sourceText || tab !== activeTab) return; // superseded by newer input or another tab
   applyResult(data, Math.max(1, Math.round(performance.now() - started)));
@@ -741,9 +781,15 @@ async function runNow() {
   try {
     await parseNow(); // keep tokens/AST/type errors in sync with what is executed
     localStorage.setItem('mydsl-stdin', stdinBox.value);
-    const response = await fetch('/api/run' + pathQuery(tab), { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: prefix + runRequestBody(text, stdinBox.value) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    applyRunResult({ ...await response.json(), unsaved }, tab);
+    try {
+      const response = await fetch('/api/run' + pathQuery(tab), { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: prefix + runRequestBody(text, stdinBox.value) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      applyRunResult({ ...await response.json(), unsaved }, tab);
+    } catch (e) {
+      if (tab.kind !== 'scratch') throw e;
+      applyRunResult({ ...browserFallbackRun(text), unsaved }, tab);
+      runStatus.textContent += ' · browser fallback';
+    }
   } catch (e) {
     runStatus.textContent = 'server unreachable';
     outputBox.textContent = `Cannot reach the mydsl server (${e.message}). Is "./mydsl --serve" still running?`;
