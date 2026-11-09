@@ -1,0 +1,14 @@
+tests/modules/lib/vectors.mydsl
+  functions: norm, scale
+tests/modules/lib/math_utils.mydsl
+  imports: "vectors.mydsl" at line 2, column 1 -> tests/modules/lib/vectors.mydsl
+  functions: square, mean
+tests/modules/app/helpers.mydsl
+  imports: "../lib/vectors.mydsl" at line 1, column 1 -> tests/modules/lib/vectors.mydsl
+  functions: unit_norm
+tests/modules/app/main.mydsl (main program)
+  imports: "../lib/math_utils.mydsl" at line 3, column 1 -> tests/modules/lib/math_utils.mydsl
+           "./helpers.mydsl" at line 4, column 1 -> tests/modules/app/helpers.mydsl
+  functions: (none)
+  other top-level statements: 2
+4 modules in dependency order (each module after the modules it imports, the main program last)

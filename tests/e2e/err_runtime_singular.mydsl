@@ -1,0 +1,3 @@
+floatmatrix 2,2 s := [[1., 2.], [2., 4.]];
+Print(determinant(s));
+Print(inverse_mat(s));

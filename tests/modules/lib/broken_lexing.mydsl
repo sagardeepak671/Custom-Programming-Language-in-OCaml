@@ -1,0 +1,3 @@
+function int bad() {
+    return 3 $ 4;
+};

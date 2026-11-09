@@ -1,0 +1,1 @@
+Type error in 'tests/modules/lib/calls_main.mydsl' at line 3, column 12: Unknown function 'helper': 'helper' is defined in the main program, which 'tests/modules/lib/calls_main.mydsl' does not import (a function is visible where its file is imported, directly or through other imports) (imported from the main program at line 1, column 1)

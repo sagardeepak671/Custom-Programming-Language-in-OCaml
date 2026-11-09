@@ -1,0 +1,1 @@
+Runtime error in 'tests/modules/lib/failing.mydsl' at line 4, column 14: Division by zero: 1 / 0 (in function 'ratio' called from line 7, column 19 of 'tests/modules/lib/failing.mydsl'; in function 'scaled_ratio' called from line 3, column 7) (imported from the main program at line 1, column 1)

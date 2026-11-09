@@ -1,0 +1,17 @@
+intmatrix 2,3 a := [[1, 2, 3], [4, 5, 6]];
+intmatrix 3,2 b := [[1, 0], [0, 1], [2, 2]];
+Print(mult_mat(a, b));                 // [[7, 8], [16, 17]]
+Print(mult_mat(b, a));                 // [[1, 2, 3], [4, 5, 6], [10, 14, 18]]
+Print(transpose(a));                   // [[1, 4], [2, 5], [3, 6]]
+Print(determinant([[2, 1], [7, 4]]));  // 8 - 7 = 1
+Print(determinant([[1, 2, 3], [0, 1, 4], [5, 6, 0]]));   // -24 + 40 - 15 = 1
+floatmatrix 2,2 m := [[4., 7.], [2., 6.]];
+Print(determinant(m));                 // 24 - 14 = 10
+Print(inverse_mat(m));                 // (1/10) [[6, -7], [-2, 4]]
+floatmatrix 2,1 rhs := [[1.], [2.]];
+Print(mult_mat(inverse_mat(m), rhs));  // [[0.6 - 1.4], [-0.2 + 0.8]] = [[-0.8], [0.6]]
+m[0, 0] := 0.;
+Print(m);
+Print(determinant(m));                 // 0 - 14 = -14
+Print(determinant(transpose(to_float([[1, 2], [3, 4]]))));   // -2.0
+Print(transpose(transpose(a)) == a);   // true

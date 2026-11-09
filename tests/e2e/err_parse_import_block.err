@@ -1,0 +1,1 @@
+Parse error at line 3, column 5: An import can only appear at the top level of the program, not inside a block or loop

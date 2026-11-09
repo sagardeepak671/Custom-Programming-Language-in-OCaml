@@ -1,0 +1,5 @@
+// 'then' is required between the condition and the block.
+bool flag := true;
+if (flag) {
+    Print(flag);
+};

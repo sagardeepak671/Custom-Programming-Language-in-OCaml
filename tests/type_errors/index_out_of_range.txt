@@ -1,0 +1,2 @@
+intvector 3 v := [10, 20, 30];
+Print(v[3]);

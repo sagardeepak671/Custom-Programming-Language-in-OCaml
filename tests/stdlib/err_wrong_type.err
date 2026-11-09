@@ -1,0 +1,1 @@
+Type error at line 2, column 14: Argument 1 of 'square' must be int (parameter 'x') but got float (MyDSL does not convert between int and float implicitly; use to_float(...) or to_int(...))

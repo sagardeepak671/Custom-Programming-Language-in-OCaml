@@ -1,0 +1,3 @@
+// A module of the test suite that wraps the standard library (three levels: program -> here -> stdlib).
+import "../../../stdlib/math.mydsl";
+function int checked_factorial(int n) { return factorial(n); };

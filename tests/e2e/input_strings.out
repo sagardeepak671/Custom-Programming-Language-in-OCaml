@@ -1,0 +1,5 @@
+String("hihihi Ada Lovelace")
+FloatVector[1.5, 2.0]
+Int(0)
+String("say \"hello\"\ttab")
+Int(15)

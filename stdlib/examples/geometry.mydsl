@@ -1,0 +1,23 @@
+// Float helpers from the standard library: run with  ./mydsl stdlib/examples/geometry.mydsl
+import "../fmath.mydsl";
+
+float radius := 2.0;
+Print(pi() * square_f(radius));          // area of the circle: Float(12.5663706143592)
+Print(hypot_f(3.0, 4.0));                // the hypotenuse: Float(5.0)
+Print(sqrt_f(2.0));                      // Float(1.41421356237309)
+Print(cbrt_f(-27.0));                    // Float(-3.0)
+Print(power_f(1.5, 3));                  // Float(3.375)
+Print(power_f(2.0, -3));                 // Float(0.125)
+Print(exp_f(1.0));                       // Float(2.71828182845904)
+Print(ln_f(euler()));                    // Float(1.0)
+Print(log10_f(1000.0));                  // Float(3.0)
+Print(pow_f(2.0, 0.5));                  // Float(1.41421356237309): exp(0.5 ln 2), a few ulps from sqrt_f(2.0)
+Print(sin_f(radians_f(30.0)));           // Float(0.5)
+Print(cos_f(pi()));                      // Float(-1.0)
+Print(degrees_f(pi() / 4.0));            // Float(45.0)
+Print(floor_f(-2.5));                    // Float(-3.0)
+Print(ceil_f(-2.5));                     // Float(-2.0)
+Print(round_f(2.5));                     // Float(3.0)
+Print(clamp_f(1.7, 0.0, 1.0));           // Float(1.0)
+Print(lerp_f(10.0, 20.0, 0.25));         // Float(12.5)
+Print(approx_equal_f(0.1 + 0.2, 0.3, 1e-12));   // Bool(true), unlike 0.1 + 0.2 == 0.3

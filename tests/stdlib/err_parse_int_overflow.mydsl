@@ -1,0 +1,2 @@
+import "../../stdlib/strings.mydsl";
+Print(parse_int("9223372036854775808"));

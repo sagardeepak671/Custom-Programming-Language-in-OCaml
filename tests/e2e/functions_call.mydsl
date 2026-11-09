@@ -1,0 +1,26 @@
+// Calls: arguments by value, locals per call, results in expressions, nested and chained calls.
+function int square(int x) {
+    x := x * x;
+    return x;
+};
+function float average(floatvector 4 v) {
+    float sum := 0.0;
+    for (i := 0, i < 4, 1) { sum := sum + v[i]; };
+    return sum / 4.0;
+};
+function intvector 2 minmax(intvector 3 v) {
+    int low := v[0];
+    int high := v[0];
+    for (i := 1, i < 3, 1) {
+        if (v[i] < low) then { low := v[i]; };
+        if (v[i] > high) then { high := v[i]; };
+    };
+    return [low, high];
+};
+int x := 3;
+Print(square(x));
+Print(x);
+Print(square(square(2)) + square(1));
+Print(average([1.0, 2.0, 3.0, 6.0]));
+Print(minmax([5, -2, 9]));
+Print(minmax([5, -2, 9])[1] - minmax([5, -2, 9])[0]);

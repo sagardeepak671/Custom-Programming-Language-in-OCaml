@@ -1,0 +1,5 @@
+// Importing stats brings in everything stats imports: math_utils and vectors are visible too.
+import "lib/stats.mydsl";
+Print(square(4));
+Print(norm([3.0, 4.0, 0.0]));
+Print(variance(scale([1.0, 2.0, 3.0], 2.0)));

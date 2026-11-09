@@ -1,0 +1,6 @@
+string s := "ab";
+int rounds := 0;
+while (true) {
+    s := s + s;
+    rounds := rounds + 1;
+};

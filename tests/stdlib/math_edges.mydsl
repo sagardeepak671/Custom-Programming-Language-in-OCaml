@@ -1,0 +1,18 @@
+import "../../stdlib/math.mydsl";
+Print(power(0, 0));                      // 1 by convention
+Print(power(2, 62));                     // the largest power of two that fits
+Print(power(-2, 63));                    // exactly the smallest int
+Print(power(-1, 1000001));               // odd exponent keeps the sign
+Print(factorial(0));
+Print(factorial(20));                    // the largest factorial that fits
+Print(fibonacci(0)); Print(fibonacci(1)); Print(fibonacci(2)); Print(fibonacci(92));   // the largest that fits
+Print(isqrt(0)); Print(isqrt(1)); Print(isqrt(15)); Print(isqrt(16)); Print(isqrt(9223372036854775807));
+Print(gcd(0, 0)); Print(gcd(0, -9)); Print(gcd(-12, -18)); Print(lcm(0, 7)); Print(lcm(-4, 6));
+Print(div_floor(7, 2)); Print(div_floor(-7, 2)); Print(div_floor(7, -2)); Print(div_floor(-7, -2)); Print(div_floor(-8, 2));
+Print(mod_floor(7, 2)); Print(mod_floor(-7, 2)); Print(mod_floor(7, -2)); Print(mod_floor(-7, -2)); Print(mod_floor(-8, 2));
+Print(is_prime(-7)); Print(is_prime(0)); Print(is_prime(1)); Print(is_prime(2)); Print(is_prime(9)); Print(is_prime(1000000007));
+Print(binomial(0, 0)); Print(binomial(5, 0)); Print(binomial(5, 5)); Print(binomial(52, 5)); Print(binomial(62, 31)); Print(binomial(66, 33));   // the largest that fits
+int smallest := -9223372036854775807 - 1;
+Print(gcd(smallest, 6)); Print(gcd(6, smallest)); Print(gcd(smallest, 1));   // the smallest int has no abs, but Euclid does not need it
+Print(digit_count(0)); Print(digit_count(-9223372036854775807)); Print(digit_sum(-9223372036854775807));
+Print(sign(0)); Print(min(-1, -1)); Print(clamp(3, 3, 3)); Print(is_even(-4)); Print(is_odd(-3));

@@ -1,0 +1,20 @@
+{
+  "name": "mydsl-editor",
+  "private": true,
+  "description": "Builds web/vendor/mydsl-editor.js: CodeMirror 6 with the MyDSL language, bundled into one self-contained file that the mydsl binary serves (no CDN).",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
+    "@lezer/highlight": "1.2.5",
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "@rollup/plugin-terser": "0.4.4",
+    "rollup": "4.64.7"
+  }
+}

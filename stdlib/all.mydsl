@@ -1,0 +1,4 @@
+// MyDSL standard library: everything at once.   import "stdlib/all.mydsl";
+import "math.mydsl";
+import "fmath.mydsl";
+import "strings.mydsl";

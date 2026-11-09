@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/fmath.mydsl' at line 217, column 5: pow_f: the base must not be negative, but it is -8.0 (for an integer exponent use power_f) (in function 'pow_f' called from line 2, column 7) (imported from the main program at line 1, column 1)

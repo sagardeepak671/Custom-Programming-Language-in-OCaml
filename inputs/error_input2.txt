@@ -1,1 +1,3 @@
-int a:= Input(file.txt);
+// Intentional static failure; no statements should execute.
+Print(999);
+int a := true;

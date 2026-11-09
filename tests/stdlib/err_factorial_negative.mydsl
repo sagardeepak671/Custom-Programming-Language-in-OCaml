@@ -1,0 +1,3 @@
+import "../../stdlib/math.mydsl";
+Print(factorial(5));
+Print(factorial(-1));

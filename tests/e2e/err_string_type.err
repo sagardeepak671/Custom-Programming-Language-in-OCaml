@@ -1,0 +1,1 @@
+Type error at line 4, column 13: Operator '+' cannot be applied to string and int (MyDSL does not convert between string and other types)

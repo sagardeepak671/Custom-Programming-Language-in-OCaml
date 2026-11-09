@@ -1,0 +1,2 @@
+import "../../stdlib/fmath.mydsl";
+Print(pow_f(-8.0, 0.5));

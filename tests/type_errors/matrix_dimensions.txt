@@ -1,0 +1,4 @@
+// 2x3 times 2x3 is not defined; the inner dimensions (3 and 2) differ.
+floatmatrix 2,3 a := [[1.,2.,3.],[4.,5.,6.]];
+floatmatrix 2,3 b := a;
+floatmatrix 2,2 c := mult_mat(a, b);

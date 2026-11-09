@@ -1,0 +1,1 @@
+Type error in 'tests/modules/lib/config.mydsl' at line 3, column 1: An imported module may only contain function definitions and imports, but this is a declaration (the top-level statements of an imported module are never executed; move it into a function or into the main program) (imported from the main program at line 1, column 1)

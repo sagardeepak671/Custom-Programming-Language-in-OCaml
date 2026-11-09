@@ -1,0 +1,5 @@
+int counter := 0;
+function int bump() {
+    counter := counter + 1;
+    return counter;
+};

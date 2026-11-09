@@ -1,0 +1,7 @@
+// Vector helpers: a leaf module (no imports).
+function float norm(floatvector 3 v) {
+    return abs(v);
+};
+function floatvector 3 scale(floatvector 3 v, float factor) {
+    return v * factor;
+};

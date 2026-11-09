@@ -1,0 +1,2 @@
+import "../../stdlib/math.mydsl";
+Print(square(2.0));

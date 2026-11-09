@@ -1,0 +1,2 @@
+import "../../stdlib/math.mydsl";
+Print(clamp(1, 5, 2));

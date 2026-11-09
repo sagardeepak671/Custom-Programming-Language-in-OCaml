@@ -1,0 +1,4 @@
+string answer := "yes";
+if (answer) then {
+    Print(1);
+};

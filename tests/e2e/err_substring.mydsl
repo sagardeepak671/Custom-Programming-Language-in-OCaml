@@ -1,0 +1,5 @@
+function string drop_first(string s) {
+    return substring(s, 1, length(s));
+};
+Print(substring("abc", 1, 2));
+Print(drop_first("abc"));

@@ -1,0 +1,1 @@
+Runtime error at line 1, column 7: angle_vec: the angle with a zero vector is undefined (FloatVector[0.0, 0.0] has length 0)

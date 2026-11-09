@@ -1,0 +1,6 @@
+// Imports are resolved relative to this file, wherever the program is run from:
+// "../lib/..." leaves the app directory, "./helpers.mydsl" stays in it.
+import "../lib/math_utils.mydsl";
+import "./helpers.mydsl";
+Print(square(5));
+Print(unit_norm([3.0, 0.0, 4.0]));

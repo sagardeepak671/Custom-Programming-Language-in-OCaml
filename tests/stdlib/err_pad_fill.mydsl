@@ -1,0 +1,2 @@
+import "../../stdlib/strings.mydsl";
+Print(pad_left("x", 5, "ab"));

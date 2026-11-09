@@ -1,0 +1,1 @@
+Parse error at line 1, column 19: Parameter 'x' of function 'half' needs a type, e.g. int x (supported types: int, float, bool, string, intvector N, floatvector N, intmatrix R,C or floatmatrix R,C)

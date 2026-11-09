@@ -1,0 +1,7 @@
+// A module with top-level statements besides its function (what happens to them is decided
+// in the next step; the loader only counts them).
+int answer := 42;
+Print(answer);
+function int the_answer() {
+    return 42;
+};

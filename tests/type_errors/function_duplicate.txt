@@ -1,0 +1,6 @@
+function int twice(int x) {
+    return 2 * x;
+};
+function int twice(int y) {
+    return y + y;
+};

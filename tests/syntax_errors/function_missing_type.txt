@@ -1,0 +1,3 @@
+function square(int x) {
+    return x * x;
+};

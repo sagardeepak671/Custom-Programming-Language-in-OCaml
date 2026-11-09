@@ -1,0 +1,5 @@
+function float scale(floatvector 2 v, float k) {
+    return abs(v) * k;
+};
+floatvector 2 v := [3.0, 4.0];
+Print(scale(v, 2));

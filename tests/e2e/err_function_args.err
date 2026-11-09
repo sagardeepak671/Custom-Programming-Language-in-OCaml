@@ -1,0 +1,1 @@
+Type error at line 5, column 16: Argument 2 of 'scale' must be float (parameter 'k') but got int (MyDSL does not convert between int and float implicitly; use to_float(...) or to_int(...))

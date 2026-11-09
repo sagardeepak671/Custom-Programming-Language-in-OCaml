@@ -1,0 +1,28 @@
+// Strings: literals with escapes, concatenation with +, equality with == and !=, string
+// variables, parameters and return values. Strings never convert to or from other types.
+string greeting := "Hello";
+string name := "MyDSL";
+string empty := "";
+
+function string join(string a, string b) {
+    if (a == "" ) then { return b; };
+    if (b == "") then { return a; };
+    return a + ", " + b;
+};
+
+function string repeat(string s, int n) {
+    string out := "";
+    for (i := 0, i < n, 1) {
+        out := out + s;
+    };
+    return out;
+};
+
+Print(greeting + " " + name + "!");
+Print(join(greeting, name));
+Print(join(empty, name));
+Print(repeat("ab", 3));
+Print(repeat("x", 0) == empty);
+Print("quote \" backslash \\ tab \t newline \n");
+Print(name == "MyDSL");
+Print(name != "mydsl");

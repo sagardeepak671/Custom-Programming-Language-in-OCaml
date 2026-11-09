@@ -1,0 +1,3 @@
+// Valid itself, but imports a file with a syntax error.
+function int one() { return 1; };
+import "broken_syntax.mydsl";

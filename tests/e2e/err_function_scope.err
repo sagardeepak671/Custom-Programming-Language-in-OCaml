@@ -1,0 +1,1 @@
+Type error at line 3, column 5: Undeclared variable 'counter' (inside function 'bump' only its parameters and local variables are visible, not top-level variables; pass the value as a parameter)

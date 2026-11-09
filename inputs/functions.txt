@@ -1,0 +1,32 @@
+// User-defined functions: typed parameters, a declared return type, calls in expressions.
+// Definitions may appear in any order and may be recursive; a body sees only its parameters
+// and its own local variables (never top-level variables), and arguments are passed by value.
+function int square(int x) {
+    return x * x;
+};
+
+function int factorial(int n) {
+    if (n <= 1) then {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    };
+};
+
+function float mean(floatvector 3 v) {
+    float sum := 0.0;
+    for (i := 0, i < 3, 1) {
+        sum := sum + v[i];
+    };
+    return sum / 3.0;
+};
+
+function bool is_even(int n) {
+    return n % 2 == 0;
+};
+
+int a := square(7);
+Print(a);
+Print(factorial(5));
+Print(mean([1.0, 2.0, 6.0]));
+Print(is_even(square(a)) || is_even(a + 1));

@@ -1,0 +1,4 @@
+string label := "total: ";
+int total := 42;
+Print(label);
+Print(label + total);

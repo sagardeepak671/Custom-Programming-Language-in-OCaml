@@ -1,0 +1,3 @@
+// Bare words are not string values: the data must use double quotes.
+string name := Input();
+Print(name);

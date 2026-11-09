@@ -1,0 +1,3 @@
+import "lib/math_utils.mydsl";
+function int square(int x) { return x * x; };
+Print(square(2));

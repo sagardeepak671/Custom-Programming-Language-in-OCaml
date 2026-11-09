@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/fmath.mydsl' at line 183, column 26: ln_f: the argument must be positive, but x is 0.0 (in function 'ln_f' called from line 2, column 7) (imported from the main program at line 1, column 1)

@@ -1,0 +1,32 @@
+IntMatrix[
+  [7, 8]
+  [16, 17]
+]
+IntMatrix[
+  [1, 2, 3]
+  [4, 5, 6]
+  [10, 14, 18]
+]
+IntMatrix[
+  [1, 4]
+  [2, 5]
+  [3, 6]
+]
+Int(1)
+Int(1)
+Float(10.0)
+FloatMatrix[
+  [0.6, -0.7]
+  [-0.2, 0.4]
+]
+FloatMatrix[
+  [-0.8]
+  [0.6]
+]
+FloatMatrix[
+  [0.0, 7.0]
+  [2.0, 6.0]
+]
+Float(-14.0)
+Float(-2.0)
+Bool(true)

@@ -1,0 +1,7 @@
+String("celsius     fahrenheit  note")
+String("----------------------------")
+String("21.5              70.7  mild")
+String("-40.0            -40.0  freezing")
+String("100.0            212.0  hot")
+String("-300.0               -  below absolute zero, skipped")
+String("coldest possible: -459.7 F")

@@ -1,0 +1,20 @@
+// Operator precedence and associativity; expected values computed by hand.
+Print(2 + 3 * 4);                 // 14: * before +
+Print((2 + 3) * 4);               // 20
+Print(20 - 8 - 2);                // 10: left associative
+Print(100 / 10 / 2);              // 5
+Print(7 % 4 * 2);                 // 6: % and * at the same level, left to right
+Print(2 * 3 % 4);                 // 2
+Print(-2 * 3 + 1);                // -5: unary minus binds tighter than *
+Print(- -3);                      // 3
+Print(1 + 2 < 4);                 // true: + before <
+Print(1 < 2 == 2 > 1);            // true: comparisons before ==
+Print(true || false && false);    // true: && before ||
+Print((true || false) && false);  // false
+Print(!true || true);             // true: ! before ||
+Print(1.5 * 2.0 + 0.25);          // 3.25
+Print(10 - 2 * 3 + 4 / 2);        // 6
+int a := 2;
+a := a + 2 - -2;                  // 6
+Print(a);
+Print(a * a % 5 + a / 4);         // 36 % 5 + 1 = 2

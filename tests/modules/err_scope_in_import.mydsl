@@ -1,0 +1,4 @@
+// A body sees only its parameters and locals, also in an imported module.
+import "lib/uses_global.mydsl";
+int limit := 3;
+Print(clamp(5));

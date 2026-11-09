@@ -1,0 +1,1 @@
+Runtime error at line 2, column 12: substring: start 1 + count 3 exceeds the length 3 of the string (at most 2 characters are available from 1) (in function 'drop_first' called from line 5, column 7)

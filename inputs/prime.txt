@@ -1,11 +1,8 @@
-int number:=101; 
-int i:=333;
-bool ans:=true;
-while(i<number){
-    if((number % i) ==0 )then{  
-            i:=number+1;
-            ans:=false; 
-    };
-    i:=i+1;
+int number := 101;
+int i := 2;
+bool ans := number >= 2;
+while (i <= number / i && ans) {
+    if (number % i == 0) then { ans := false; };
+    i := i + 1;
 };
 Print(ans);

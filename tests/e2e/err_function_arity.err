@@ -1,0 +1,1 @@
+Type error at line 4, column 7: Function 'add' expects 2 arguments (int a, int b) but got 3 (declared at line 1, column 1)

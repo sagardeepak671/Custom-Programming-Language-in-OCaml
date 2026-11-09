@@ -1,0 +1,37 @@
+// String builtins: length(s) counts characters (bytes), substring(s, start, count) takes
+// count characters from the 0-based start (the range must lie inside the string), and
+// to_string(x) gives the literal text of an int, float, bool or string.
+function string pad_left(string s, int width) {
+    string out := s;
+    while (length(out) < width) {
+        out := " " + out;
+    };
+    return out;
+};
+
+function string reverse(string s) {
+    string out := "";
+    for (i := length(s) - 1, i >= 0, -1) {
+        out := out + substring(s, i, 1);
+    };
+    return out;
+};
+
+function bool is_palindrome(string s) {
+    return s == reverse(s);
+};
+
+function string describe(int n) {
+    return to_string(n) + " squared is " + to_string(n * n);
+};
+
+string word := "level";
+Print(length(word));
+Print(substring(word, 1, 3));
+Print(substring(word, 0, 0) == "");
+Print(reverse("stressed"));
+Print(is_palindrome(word));
+Print(is_palindrome("MyDSL"));
+Print(pad_left(to_string(42), 6));
+Print(describe(12));
+Print(to_string(2.5) + " " + to_string(true));

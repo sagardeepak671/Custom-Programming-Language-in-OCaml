@@ -1,0 +1,2 @@
+floatmatrix 2,3 a := [[1.,2.,3.],[4.,5.,6.]];
+floatmatrix 2,2 p := mult_mat(a, a);

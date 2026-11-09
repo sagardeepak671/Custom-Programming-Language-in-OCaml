@@ -1,0 +1,1 @@
+Parse error at line 1, column 10: 'error' is a statement that stops the program and cannot be used inside an expression; write it on its own: error("message");

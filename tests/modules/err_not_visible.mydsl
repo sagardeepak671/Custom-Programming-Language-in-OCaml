@@ -1,0 +1,3 @@
+import "lib/calls_main.mydsl";
+function int helper(int x) { return x; };
+Print(uses_helper(1));

@@ -1,0 +1,2 @@
+import "../../stdlib/math.mydsl";
+Print(power(2, -1));

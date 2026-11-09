@@ -1,0 +1,1 @@
+Type error at line 2, column 22: mult_mat cannot multiply floatmatrix 2,3 by floatmatrix 2,3: the column count of the first (3) must equal the row count of the second (2)

@@ -1,0 +1,1 @@
+Type error at line 2, column 1: Function 'clamp' must return int on every path, but the end of its body can be reached without a return statement (an if needs a return in both branches; loops do not count because they may run zero times)

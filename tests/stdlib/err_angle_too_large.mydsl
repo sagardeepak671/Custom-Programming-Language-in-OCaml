@@ -1,0 +1,3 @@
+import "../../stdlib/fmath.mydsl";
+Print(sin_f(1e9));
+Print(sin_f(1e10));

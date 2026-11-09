@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/math.mydsl' at line 86, column 24: factorial: 21! does not fit in a 64-bit int (the largest is 20!) (in function 'factorial' called from line 2, column 7) (imported from the main program at line 1, column 1)

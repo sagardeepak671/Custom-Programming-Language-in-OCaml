@@ -1,0 +1,5 @@
+int total := 0;
+function int add(int x) {
+    total := total + x;
+    return total;
+};

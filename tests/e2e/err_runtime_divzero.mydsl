@@ -1,0 +1,4 @@
+Print(1);
+int z := 0;
+Print(10 / z);
+Print(2);

@@ -1,0 +1,10 @@
+Print(1);
+function int clamp(int x) {
+    if (x < 0) then {
+        return 0;
+    };
+    while (x > 10) {
+        return 10;
+    };
+};
+Print(clamp(5));

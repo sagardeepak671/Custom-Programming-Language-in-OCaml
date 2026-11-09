@@ -1,0 +1,4 @@
+function int f() {
+    import "helpers.mydsl";
+    return 1;
+};

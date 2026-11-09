@@ -1,0 +1,13 @@
+tests/modules/lib/vectors.mydsl
+  functions: norm, scale
+tests/modules/lib/math_utils.mydsl
+  imports: "vectors.mydsl" at line 2, column 1 -> tests/modules/lib/vectors.mydsl
+  functions: square, mean
+tests/modules/lib/stats.mydsl
+  imports: "math_utils.mydsl" at line 2, column 1 -> tests/modules/lib/math_utils.mydsl
+  functions: variance
+tests/modules/nested.mydsl (main program)
+  imports: "lib/stats.mydsl" at line 2, column 1 -> tests/modules/lib/stats.mydsl
+  functions: (none)
+  other top-level statements: 1
+4 modules in dependency order (each module after the modules it imports, the main program last)

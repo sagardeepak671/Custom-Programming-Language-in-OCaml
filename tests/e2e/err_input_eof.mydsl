@@ -1,0 +1,3 @@
+int a := Input();
+int b := Input();
+Print(a);

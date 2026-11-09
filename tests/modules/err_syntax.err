@@ -1,0 +1,1 @@
+Parse error in 'tests/modules/lib/broken_syntax.mydsl' at line 3, column 1: Expected ';' to end the return statement but found '}' (imported from the main program at line 1, column 1)

@@ -1,0 +1,24 @@
+// Layered imports: this program uses its own temperature.mydsl (next to it), which uses
+// stdlib/fmath.mydsl; the program also imports stdlib/strings.mydsl for the table layout.
+// fmath.mydsl is reachable twice (directly and through temperature.mydsl) and loaded once:
+//   ./mydsl --modules stdlib/examples/layered/main.mydsl
+// Run with  ./mydsl --input stdlib/examples/layered/main.in stdlib/examples/layered/main.mydsl
+import "temperature.mydsl";
+import "../../strings.mydsl";
+import "../../fmath.mydsl";
+
+Print(pad_right("celsius", 10, " ") + pad_left("fahrenheit", 12, " ") + "  note");
+Print(repeat("-", 28));
+int count := Input();
+for (i := 0, i < count, 1) {
+    float celsius := Input();
+    string row := pad_right(to_string(celsius), 10, " ");
+    // Validate before converting: to_fahrenheit would stop the program with an error otherwise.
+    if (is_valid_celsius(celsius)) then {
+        row := row + pad_left(to_string(to_fahrenheit(celsius)), 12, " ") + "  " + describe(celsius);
+    } else {
+        row := row + pad_left("-", 12, " ") + "  below absolute zero, skipped";
+    };
+    Print(row);
+};
+Print("coldest possible: " + to_string(to_fahrenheit(absolute_zero_celsius())) + " F");

@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/strings.mydsl' at line 200, column 9: parse_int: "12a" is not the text of an integer (expected an optional '-' followed by digits only) (in function 'parse_int' called from line 2, column 7) (imported from the main program at line 1, column 1)

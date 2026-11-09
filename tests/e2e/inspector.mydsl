@@ -1,0 +1,29 @@
+// Top-level variables of every type, updated directly, through element assignment, in blocks
+// and loops, and by function results: the final state is what --run-json / the browser's
+// variable inspector report (compared byte for byte between the CLI and /api/run).
+int count := 0;
+float ratio := 1.0;
+bool flag := false;
+string label := "n=";
+intvector 3 v := [1, 2, 3];
+floatmatrix 2,2 m := [[1.0, 0.0], [0.0, 1.0]];
+function int bump(int x) {
+    int local := x + 1;
+    return local;
+};
+function floatmatrix 2,2 scale(floatmatrix 2,2 a, float k) {
+    return a * k;
+};
+for (i := 0, i < 3, 1) {
+    count := bump(count);
+    v[i] := v[i] * 10;
+};
+{
+    int count := 100;
+    ratio := ratio / 4.0;
+};
+flag := count == 3;
+label := label + to_string(count);
+m := scale(m, 2.5);
+Print(label);
+Print(v);

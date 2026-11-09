@@ -1,0 +1,4 @@
+function int clamp(int x) {
+    if (x > limit) then { return limit; };
+    return x;
+};

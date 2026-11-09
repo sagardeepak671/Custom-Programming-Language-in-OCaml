@@ -1,0 +1,42 @@
+// Early returns: a function may return from inside nested blocks and loops; the rest of the
+// body is skipped. Linear search returns the position of a key or -1, and a function that
+// classifies a vector stops at the first element that decides the answer.
+function int index_of(intvector 6 v, int key) {
+    for (i := 0, i < 6, 1) {
+        if (v[i] == key) then {
+            return i;
+        };
+    };
+    return -1;
+};
+
+function bool all_positive(floatvector 4 v) {
+    int i := 0;
+    while (i < 4) {
+        if (v[i] <= 0.0) then {
+            return false;
+        };
+        i := i + 1;
+    };
+    return true;
+};
+
+function int clamp(int x, int low, int high) {
+    if (x < low) then {
+        return low;
+    } else {
+        if (x > high) then {
+            return high;
+        };
+    };
+    return x;
+};
+
+intvector 6 data := [4, 8, 15, 16, 23, 42];
+Print(index_of(data, 15));
+Print(index_of(data, 7));
+Print(all_positive([1.5, 2.0, 0.5, 3.0]));
+Print(all_positive([1.5, -2.0, 0.5, 3.0]));
+Print(clamp(-5, 0, 10));
+Print(clamp(5, 0, 10));
+Print(clamp(50, 0, 10));

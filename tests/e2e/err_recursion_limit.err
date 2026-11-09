@@ -1,0 +1,1 @@
+Runtime error at line 3, column 12: Call depth limit of 1000 exceeded while calling 'forever' (is a recursive function missing its base case?) (in function 'forever' called from line 3, column 12 [999 times]; in function 'forever' called from line 6, column 7)

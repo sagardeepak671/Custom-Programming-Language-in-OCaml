@@ -1,0 +1,21 @@
+// String helpers from the standard library: run with  ./mydsl stdlib/examples/text.mydsl
+import "../strings.mydsl";
+
+string line := "  Hello, MyDSL world!  ";
+string text := trim(line);
+Print(text);                             // String("Hello, MyDSL world!")
+Print(to_upper(text));                   // String("HELLO, MYDSL WORLD!")
+Print(reverse("stressed"));              // String("desserts")
+Print(starts_with(text, "Hello"));       // Bool(true)
+Print(ends_with(text, "?"));             // Bool(false)
+Print(index_of(text, "MyDSL"));          // Int(7)
+Print(contains(text, "world"));          // Bool(true)
+Print(count_of("banana", "a"));          // Int(3)
+Print(replace_all(text, "world", "module"));    // String("Hello, MyDSL module!")
+Print(pad_left(to_string(42), 6, "0"));  // String("000042")
+Print(pad_right("ab", 5, ".") + "|");    // String("ab...|")
+Print(repeat("-=", 5));                  // String("-=-=-=-=-=")
+Print(is_integer_text("-17"));           // Bool(true)
+Print(parse_int("-17") * 2);             // Int(-34)
+Print(char_at(text, 0));                 // String("H")
+Print(is_letter("q") && !is_digit("q")); // Bool(true)

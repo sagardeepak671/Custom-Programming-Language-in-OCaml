@@ -1,0 +1,3 @@
+// Matrix rows must all have the same length.
+floatmatrix 2,2 m := [[1., 2.],
+                      [3.]];

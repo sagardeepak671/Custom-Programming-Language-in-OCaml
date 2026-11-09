@@ -1,0 +1,3 @@
+function int one() { return 1; };
+function int two() { return 2; };
+function float one() { return 1.0; };

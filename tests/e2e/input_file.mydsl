@@ -1,0 +1,10 @@
+// Data files are read relative to the working directory (the project directory), one file
+// being read sequentially across several Input calls.
+float a := Input("ip.txt");
+floatvector 6 v := Input("tests/data/binary_search.txt");
+float key := Input("tests/data/binary_search.txt");
+int n := Input("tests/data/int.txt");
+Print(a);              // 23.5
+Print(v[n]);           // v[4] = 5.0
+Print(key);            // 4.0
+Print(v[3] == key);    // true

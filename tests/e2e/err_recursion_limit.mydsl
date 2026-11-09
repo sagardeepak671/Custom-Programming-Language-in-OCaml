@@ -1,0 +1,6 @@
+// Unbounded recursion stops at the call depth limit instead of exhausting the stack.
+function int forever(int n) {
+    return forever(n + 1) + 1;
+};
+Print(1);
+Print(forever(0));

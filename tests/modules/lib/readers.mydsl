@@ -1,0 +1,5 @@
+import "math_utils.mydsl";
+function int square_of_next() {
+    int value := Input();
+    return square(value);
+};

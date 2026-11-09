@@ -1,0 +1,1 @@
+Import error at line 2, column 1: Duplicate import of "./lib/../lib/vectors.mydsl": the same file 'tests/modules/lib/vectors.mydsl' was already imported at line 1, column 1 as "lib/vectors.mydsl"; remove one of the two imports

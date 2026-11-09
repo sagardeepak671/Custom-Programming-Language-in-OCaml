@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/fmath.mydsl' at line 108, column 25: sqrt_f: the argument must not be negative, but x is -4.0 (in function 'sqrt_f' called from line 2, column 7) (imported from the main program at line 1, column 1)

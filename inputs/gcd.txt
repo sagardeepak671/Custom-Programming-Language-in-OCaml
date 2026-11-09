@@ -1,0 +1,37 @@
+// Euclid's algorithm as a recursive and as an iterative function, mutual recursion (even/odd)
+// and a function whose result feeds another call (lcm uses gcd).
+function int gcd(int a, int b) {
+    if (b == 0) then {
+        return a;
+    };
+    return gcd(b, a % b);
+};
+
+function int gcd_loop(int a, int b) {
+    while (b != 0) {
+        int rest := a % b;
+        a := b;
+        b := rest;
+    };
+    return a;
+};
+
+function int lcm(int a, int b) {
+    return a / gcd(a, b) * b;
+};
+
+function bool is_even(int n) {
+    if (n == 0) then { return true; };
+    return is_odd(n - 1);
+};
+
+function bool is_odd(int n) {
+    if (n == 0) then { return false; };
+    return is_even(n - 1);
+};
+
+Print(gcd(48, 18));
+Print(gcd_loop(48, 18) == gcd(48, 18));
+Print(lcm(4, 6));
+Print(is_even(10));
+Print(is_odd(10));

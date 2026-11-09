@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/math.mydsl' at line 51, column 30: power: the exponent must not be negative, but it is -1 (for negative exponents use power_f from fmath.mydsl) (in function 'power' called from line 2, column 7) (imported from the main program at line 1, column 1)

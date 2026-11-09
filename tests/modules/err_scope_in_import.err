@@ -1,0 +1,1 @@
+Type error in 'tests/modules/lib/uses_global.mydsl' at line 2, column 13: Undeclared variable 'limit' (inside function 'clamp' only its parameters and local variables are visible, not top-level variables; pass the value as a parameter) (imported from the main program at line 2, column 1)

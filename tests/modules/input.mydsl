@@ -1,0 +1,5 @@
+// Input() works inside imported functions as anywhere else; the data comes from the program's standard input.
+import "lib/readers.mydsl";
+int n := Input();
+Print(square_of_next());
+Print(square(n));

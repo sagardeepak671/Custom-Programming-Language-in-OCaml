@@ -1,0 +1,4 @@
+function int f() {
+    import "lib/vectors.mydsl";
+    return 1;
+};

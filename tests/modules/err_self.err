@@ -1,0 +1,1 @@
+Import error at line 2, column 1: Circular import: the main program imports itself

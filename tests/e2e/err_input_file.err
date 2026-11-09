@@ -1,0 +1,1 @@
+Runtime error at line 1, column 12: Cannot open input file 'tests/data/no_such_file.txt' (paths are relative to the working directory)

@@ -1,0 +1,4 @@
+import "../lib/vectors.mydsl";
+function float unit_norm(floatvector 3 v) {
+    return norm(scale(v, 1.0 / norm(v)));
+};

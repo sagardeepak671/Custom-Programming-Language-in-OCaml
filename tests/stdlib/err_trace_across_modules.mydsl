@@ -1,0 +1,4 @@
+import "helpers/checked_math.mydsl";
+function int report(int n) { return checked_factorial(n) + 1; };
+Print(report(4));
+Print(report(-2));

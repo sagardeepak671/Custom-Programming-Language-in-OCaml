@@ -1,0 +1,18 @@
+import "../../stdlib/fmath.mydsl";
+Print(sqrt_f(0.0)); Print(sqrt_f(1e-300) * 1e150); Print(sqrt_f(1e300) / 1e150); Print(sqrt_f(0.25));
+Print(cbrt_f(0.0)); Print(cbrt_f(1e300) / 1e100); Print(cbrt_f(0.001));
+Print(exp_f(0.0)); Print(exp_f(-708.0) > 0.0); Print(exp_f(-709.0)); Print(exp_f(709.0) > 1e307);
+Print(ln_f(1.0)); Print(ln_f(1e-300) / 100.0); Print(ln_f(1e300) / 100.0); Print(log2_f(1024.0)); Print(log2_f(0.5));
+Print(pow_f(0.0, 2.0)); Print(pow_f(0.0, 0.0)); Print(pow_f(5.0, 0.0)); Print(pow_f(10.0, -2.0));
+Print(power_f(0.0, 0)); Print(power_f(-2.0, 3)); Print(power_f(2.0, -1000) > 0.0); Print(power_f(0.5, 10));
+Print(sin_f(0.0)); Print(cos_f(0.0)); Print(sin_f(pi())); Print(cos_f(pi() / 2.0)); Print(sin_f(-pi() / 2.0)); Print(tan_f(0.0));
+Print(sin_f(1e6) + 0.349993502171293 < 1e-14);      // reduced accurately
+Print(floor_f(0.0)); Print(floor_f(-0.5)); Print(ceil_f(0.5)); Print(ceil_f(-0.5)); Print(round_f(0.5)); Print(round_f(-0.5)); Print(round_f(1.5)); Print(round_f(-1.5));
+Print(fract_f(2.75)); Print(fract_f(-2.75)); Print(is_integer_f(-0.0)); Print(is_integer_f(1e15)); Print(is_integer_f(1e15 + 0.5));
+Print(hypot_f(0.0, 0.0)); Print(hypot_f(-3.0, 4.0)); Print(hypot_f(1e200, 1e200) > 1e200);
+Print(clamp_f(0.5, 0.5, 0.5)); Print(min_f(-0.0, 0.0)); Print(sign_f(-1e-300)); Print(lerp_f(1.0, 3.0, 1.5)); Print(approx_equal_f(1.0, 1.0, 0.0));
+Print(degrees_f(2.0 * pi())); Print(radians_f(0.0));
+// Values of 2^52 and beyond are integers already: the rounding functions return them unchanged.
+Print(floor_f(1e19)); Print(ceil_f(-1e300)); Print(round_f(9007199254740993.0)); Print(fract_f(1e19)); Print(is_integer_f(1e300)); Print(floor_f(4503599627370495.5) < 4503599627370496.0); Print(ceil_f(-4503599627370495.5) > -4503599627370496.0);
+// round_f rounds by the exact distance to the floor, not floor(x + 0.5).
+Print(round_f(0.49999999999999994)); Print(round_f(-0.49999999999999994)); Print(round_f(0.5)); Print(round_f(1.4999999999999998));

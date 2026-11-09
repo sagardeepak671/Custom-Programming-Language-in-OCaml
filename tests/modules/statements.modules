@@ -1,0 +1,8 @@
+tests/modules/lib/config.mydsl
+  functions: the_answer
+  other top-level statements: 2
+tests/modules/statements.mydsl (main program)
+  imports: "lib/config.mydsl" at line 1, column 1 -> tests/modules/lib/config.mydsl
+  functions: (none)
+  other top-level statements: 1
+2 modules in dependency order (each module after the modules it imports, the main program last)

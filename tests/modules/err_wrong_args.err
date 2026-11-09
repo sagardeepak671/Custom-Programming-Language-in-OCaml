@@ -1,0 +1,1 @@
+Type error at line 2, column 7: Function 'square' expects 1 argument (int x) but got 2 (declared at line 3, column 1 of 'tests/modules/lib/math_utils.mydsl')

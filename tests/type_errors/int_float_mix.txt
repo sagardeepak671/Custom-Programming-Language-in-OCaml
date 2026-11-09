@@ -1,0 +1,3 @@
+// MyDSL never converts between int and float implicitly.
+int n := 4;
+float half := n / 2.0;

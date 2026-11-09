@@ -1,0 +1,16 @@
+IntVector[5, 7, 9]
+IntVector[3, 3, 3]
+IntVector[6, 9, 12]
+IntVector[2, 2, 3]
+Int(32)
+Float(5.0)
+IntVector[3, 2, 1]
+Bool(true)
+Bool(true)
+Float(1.5707963267949)
+Float(0.0)
+IntVector[30, 2, 3]
+Int(148)
+FloatVector[3.0, -4.0]
+FloatVector[1.0, 1.25, 1.5]
+Float(2.5)

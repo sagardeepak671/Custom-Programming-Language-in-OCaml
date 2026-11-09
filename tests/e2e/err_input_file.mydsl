@@ -1,0 +1,1 @@
+float a := Input("tests/data/no_such_file.txt");

@@ -1,0 +1,3 @@
+// closes the cycle a -> b -> c -> a
+import "a.mydsl";
+function int c() { return 3; };

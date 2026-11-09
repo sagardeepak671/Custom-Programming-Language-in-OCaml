@@ -1,0 +1,3 @@
+int big := 9223372036854775807;
+Print(big);
+big := big + 1;

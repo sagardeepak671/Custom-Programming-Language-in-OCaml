@@ -1,0 +1,12 @@
+// The whole library at once, mixing the modules: run with
+//   printf '7 2.5' | ./mydsl stdlib/examples/report.mydsl      (or --input with a data file)
+import "../all.mydsl";
+
+int count := Input();
+float unit_price := Input();
+float total := unit_price * to_float(count);
+Print(pad_right("items", 8, ".") + pad_left(to_string(count), 4, " "));
+Print(pad_right("total", 8, ".") + pad_left(to_string(round_f(total * 100.0) / 100.0), 8, " "));
+Print(pad_right("sqrt", 8, ".") + pad_left(to_string(sqrt_f(total)), 18, " "));
+Print("even count: " + to_string(is_even(count)) + ", prime: " + to_string(is_prime(count)));
+Print("digits of " + to_string(factorial(count)) + ": " + to_string(digit_count(factorial(count))));

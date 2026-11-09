@@ -1,0 +1,1 @@
+Type error at line 2, column 1: Function 'min' is already defined (at line 16, column 1 of 'stdlib/math.mydsl'); function names are shared by a program and every module it imports, directly or indirectly

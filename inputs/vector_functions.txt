@@ -1,0 +1,34 @@
+// Functions over vectors and matrices: arguments and results may be any type, builtins and
+// user functions combine freely, and arguments are copied (normalise leaves v unchanged).
+function floatvector 3 normalise(floatvector 3 v) {
+    float len := abs(v);
+    if (len == 0.0) then {
+        return v;
+    };
+    return v / len;
+};
+
+function float trace(floatmatrix 2,2 m) {
+    return m[0, 0] + m[1, 1];
+};
+
+function floatmatrix 2,2 power(floatmatrix 2,2 m, int n) {
+    if (n == 0) then {
+        return [[1.0, 0.0], [0.0, 1.0]];
+    };
+    return mult_mat(m, power(m, n - 1));
+};
+
+function float dot_self(floatvector 3 v) {
+    return dotprod_vec(v, v);
+};
+
+floatvector 3 v := [3.0, 0.0, 4.0];
+floatvector 3 u := normalise(v);
+Print(u);
+Print(v);
+Print(dot_self(u));
+floatmatrix 2,2 fibm := [[1.0, 1.0], [1.0, 0.0]];
+Print(power(fibm, 10));
+Print(trace(power(fibm, 5)));
+Print(trace(inverse_mat(fibm)) == -1.0);

@@ -1,0 +1,7 @@
+// Second level of nesting: stats -> math_utils -> vectors.
+import "math_utils.mydsl";
+function float variance(floatvector 3 v) {
+    float m := mean(v);
+    floatvector 3 d := v - [m, m, m];
+    return dotprod_vec(d, d) / 3.0;
+};

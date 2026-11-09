@@ -1,0 +1,2 @@
+import "../../stdlib/strings.mydsl";
+Print(repeat("x", -1));

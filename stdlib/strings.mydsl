@@ -1,0 +1,211 @@
+// MyDSL standard library: text.   import "stdlib/strings.mydsl";
+//
+// Built on the language's length, substring, + and == (README "Strings"): positions and
+// lengths count bytes, and letters are the ASCII ones. An argument outside a function's domain
+// stops the program with error(...): the message names the function, the rule and the value.
+
+// The one-character string at position i (0-based, below length(s)).
+function string char_at(string s, int i) {
+    if (length(s) == 0) then { error("char_at: the string is empty, it has no position " + to_string(i)); };
+    if (i < 0 || i >= length(s)) then {
+        error("char_at: position " + to_string(i) + " is outside " + quote(s) + " (valid positions are 0.." + to_string(length(s) - 1) + ")");
+    };
+    return substring(s, i, 1);
+};
+
+// The one-character string c as it is written inside a string literal: the five characters
+// that need a backslash are escaped, every other one is returned as it is.
+function string escape_char(string c) {
+    if (c == "\"") then { return "\\\""; };
+    if (c == "\\") then { return "\\\\"; };
+    if (c == "\n") then { return "\\n"; };
+    if (c == "\t") then { return "\\t"; };
+    if (c == "\r") then { return "\\r"; };
+    return c;
+};
+
+// s written as a MyDSL string literal, for messages: quote("a\"b") is "\"a\\\"b\"" (what Print shows).
+function string quote(string s) {
+    string out := "\"";
+    for (i := 0, i < length(s), 1) { out := out + escape_char(substring(s, i, 1)); };
+    return out + "\"";
+};
+
+// s repeated n >= 0 times.
+function string repeat(string s, int n) {
+    if (n < 0) then { error("repeat: the count must not be negative, but it is " + to_string(n)); };
+    string out := "";
+    for (i := 0, i < n, 1) { out := out + s; };
+    return out;
+};
+
+function string reverse(string s) {
+    string out := "";
+    for (i := length(s) - 1, i >= 0, -1) { out := out + substring(s, i, 1); };
+    return out;
+};
+
+function bool starts_with(string s, string prefix) {
+    if (length(prefix) > length(s)) then { return false; };
+    return substring(s, 0, length(prefix)) == prefix;
+};
+
+function bool ends_with(string s, string suffix) {
+    int n := length(suffix);
+    if (n > length(s)) then { return false; };
+    return substring(s, length(s) - n, n) == suffix;
+};
+
+// The position of the first occurrence of part in s, or -1; "" is found at 0.
+function int index_of(string s, string part) {
+    int n := length(part);
+    int last := length(s) - n;
+    for (i := 0, i <= last, 1) {
+        if (substring(s, i, n) == part) then { return i; };
+    };
+    return -1;
+};
+
+// The position of the last occurrence of part in s, or -1.
+function int last_index_of(string s, string part) {
+    int n := length(part);
+    for (i := length(s) - n, i >= 0, -1) {
+        if (substring(s, i, n) == part) then { return i; };
+    };
+    return -1;
+};
+
+function bool contains(string s, string part) {
+    return index_of(s, part) >= 0;
+};
+
+// How many times part (not empty) occurs in s, without overlapping.
+function int count_of(string s, string part) {
+    if (length(part) == 0) then { error("count_of: the part to count must not be empty"); };
+    int count := 0;
+    int i := 0;
+    while (i + length(part) <= length(s)) {
+        if (substring(s, i, length(part)) == part) then {
+            count := count + 1;
+            i := i + length(part);
+        } else {
+            i := i + 1;
+        };
+    };
+    return count;
+};
+
+// s with every occurrence of from (not empty) replaced by to, left to right without overlapping.
+function string replace_all(string s, string from, string to) {
+    if (length(from) == 0) then { error("replace_all: the text to replace must not be empty"); };
+    string out := "";
+    int i := 0;
+    while (i < length(s)) {
+        if (i + length(from) <= length(s) && substring(s, i, length(from)) == from) then {
+            out := out + to;
+            i := i + length(from);
+        } else {
+            out := out + substring(s, i, 1);
+            i := i + 1;
+        };
+    };
+    return out;
+};
+
+// s padded on the left with the one-character string fill up to width characters.
+function string pad_left(string s, int width, string fill) {
+    if (length(fill) != 1) then { error("pad_left: the fill must be exactly one character, but it is " + quote(fill)); };
+    string out := s;
+    while (length(out) < width) { out := fill + out; };
+    return out;
+};
+
+// s padded on the right with the one-character string fill up to width characters.
+function string pad_right(string s, int width, string fill) {
+    if (length(fill) != 1) then { error("pad_right: the fill must be exactly one character, but it is " + quote(fill)); };
+    string out := s;
+    while (length(out) < width) { out := out + fill; };
+    return out;
+};
+
+// Whether c is a single space, tab, newline or carriage return.
+function bool is_whitespace(string c) {
+    return c == " " || c == "\t" || c == "\n" || c == "\r";
+};
+
+function bool is_digit(string c) {
+    return length(c) == 1 && index_of("0123456789", c) >= 0;
+};
+
+// Whether c is a single ASCII letter.
+function bool is_letter(string c) {
+    return length(c) == 1 && (index_of("abcdefghijklmnopqrstuvwxyz", c) >= 0 || index_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c) >= 0);
+};
+
+function string trim_left(string s) {
+    int start := 0;
+    while (start < length(s) && is_whitespace(substring(s, start, 1))) { start := start + 1; };
+    return substring(s, start, length(s) - start);
+};
+
+function string trim_right(string s) {
+    int end := length(s);
+    while (end > 0 && is_whitespace(substring(s, end - 1, 1))) { end := end - 1; };
+    return substring(s, 0, end);
+};
+
+// s without leading and trailing whitespace.
+function string trim(string s) {
+    return trim_left(trim_right(s));
+};
+
+// ASCII letters converted to upper case; everything else is kept.
+function string to_upper(string s) {
+    string out := "";
+    for (i := 0, i < length(s), 1) {
+        string c := substring(s, i, 1);
+        int k := index_of("abcdefghijklmnopqrstuvwxyz", c);
+        if (k >= 0) then { c := substring("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k, 1); };
+        out := out + c;
+    };
+    return out;
+};
+
+// ASCII letters converted to lower case; everything else is kept.
+function string to_lower(string s) {
+    string out := "";
+    for (i := 0, i < length(s), 1) {
+        string c := substring(s, i, 1);
+        int k := index_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c);
+        if (k >= 0) then { c := substring("abcdefghijklmnopqrstuvwxyz", k, 1); };
+        out := out + c;
+    };
+    return out;
+};
+
+// Whether s is the text of an integer: an optional '-' and at least one digit, nothing else.
+function bool is_integer_text(string s) {
+    int start := 0;
+    if (starts_with(s, "-")) then { start := 1; };
+    if (start >= length(s)) then { return false; };
+    for (i := start, i < length(s), 1) {
+        if (!is_digit(substring(s, i, 1))) then { return false; };
+    };
+    return true;
+};
+
+// The int written in s (is_integer_text(s) must hold; a value outside 64 bits is an overflow error).
+function int parse_int(string s) {
+    if (!is_integer_text(s)) then {
+        error("parse_int: " + quote(s) + " is not the text of an integer (expected an optional '-' followed by digits only)");
+    };
+    bool negative := starts_with(s, "-");
+    int start := 0;
+    if (negative) then { start := 1; };
+    int value := 0;
+    for (i := start, i < length(s), 1) {
+        int digit := index_of("0123456789", substring(s, i, 1));
+        if (negative) then { value := value * 10 - digit; } else { value := value * 10 + digit; };
+    };
+    return value;
+};

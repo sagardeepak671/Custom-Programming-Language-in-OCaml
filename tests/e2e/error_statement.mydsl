@@ -1,0 +1,13 @@
+function int checked_percent(int value) {
+    if (value < 0 || value > 100) then {
+        error("percent out of range: " + to_string(value));
+    };
+    return value;
+};
+function string label(int n) {
+    if (n > 0) then { return "positive"; } else { error("label: needs a positive number, got " + to_string(n)); };
+};
+Print(checked_percent(50));
+Print(label(3));
+Print(checked_percent(101));
+Print("never printed");

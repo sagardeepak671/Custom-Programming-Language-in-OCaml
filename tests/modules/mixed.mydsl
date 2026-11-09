@@ -1,0 +1,17 @@
+// The main program's own functions and imported ones call each other freely; top-level
+// variables stay invisible inside every body, wherever it is defined.
+import "lib/math_utils.mydsl";
+int base := 10;
+function int shifted_square(int x) {
+    return square(x) + 1;
+};
+function float average_of_squares(floatvector 3 v) {
+    return mean([square_f(v[0]), square_f(v[1]), square_f(v[2])]);
+};
+function float square_f(float x) {
+    return x * x;
+};
+Print(shifted_square(base));
+Print(average_of_squares([1.0, 2.0, 3.0]));
+base := shifted_square(shifted_square(1));
+Print(base);

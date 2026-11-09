@@ -1,0 +1,1 @@
+Type error at line 2, column 7: Unknown function 'cube' (available: abs, angle_vec, determinant, dotprod_vec, Input, inv_vec, inverse_mat, is_zero, length, mult_mat, substring, to_float, to_int, to_string, transpose; imported: mean, norm, scale, square)

@@ -1,0 +1,1 @@
+Parse error at line 1, column 8: The file name of an import must not be empty (e.g. import "math_utils.mydsl";)

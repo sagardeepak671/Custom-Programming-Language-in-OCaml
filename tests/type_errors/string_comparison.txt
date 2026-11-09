@@ -1,0 +1,3 @@
+string a := "apple";
+string b := "banana";
+Print(a < b);

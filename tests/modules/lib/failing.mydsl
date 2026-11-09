@@ -1,0 +1,11 @@
+// Functions whose bodies fail at run time for some arguments.
+import "math_utils.mydsl";
+function int ratio(int a, int b) {
+    return a / b;
+};
+function int scaled_ratio(int a, int b) {
+    return square(ratio(a, b));
+};
+function int countdown(int n) {
+    return countdown(n - 1);
+};

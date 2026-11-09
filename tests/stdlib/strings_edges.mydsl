@@ -1,0 +1,11 @@
+import "../../stdlib/strings.mydsl";
+Print(reverse("")); Print(reverse("a")); Print(repeat("ab", 0)); Print(repeat("", 5));
+Print(index_of("", "")); Print(index_of("abc", "")); Print(index_of("abc", "abcd")); Print(last_index_of("aaa", "aa")); Print(index_of("aaa", "aa"));
+Print(count_of("aaaa", "aa")); Print(count_of("", "a")); Print(replace_all("aaa", "aa", "b")); Print(replace_all("abc", "x", "y")); Print(replace_all("abc", "abc", ""));
+Print(starts_with("", "")); Print(ends_with("abc", "")); Print(starts_with("ab", "abc")); Print(contains("", ""));
+Print(pad_left("abc", 2, "*")); Print(pad_left("", 3, "-")); Print(pad_right("x", -1, "."));
+Print(trim("")); Print(trim(" \t\r\n")); Print(trim("a b")); Print(trim_left("  a  ") + "|"); Print(trim_right("  a  ") + "|");
+Print(to_upper("")); Print(to_upper("Straße 9!")); Print(to_lower("ÀB"));
+Print(is_integer_text("")); Print(is_integer_text("-")); Print(is_integer_text("0")); Print(is_integer_text("+1")); Print(is_integer_text("007")); Print(is_integer_text("1 "));
+Print(parse_int("007")); Print(parse_int("-0")); Print(parse_int("9223372036854775807")); Print(parse_int("-9223372036854775808"));
+Print(is_digit("")); Print(is_digit("12")); Print(is_letter("é")); Print(is_whitespace("  ")); Print(char_at("abc", 2));

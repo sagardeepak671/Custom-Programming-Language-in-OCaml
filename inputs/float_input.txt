@@ -1,4 +1,5 @@
-float a:=Input(ip.txt);
-int b:= Input(ip.txt);
-int c:= Input(ip.txt);
-int d:= Input();
+// File paths are relative to the working directory.
+float a := Input("ip.txt");
+float b := Input();
+Print(a);
+Print(b);

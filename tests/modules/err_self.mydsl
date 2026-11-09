@@ -1,0 +1,2 @@
+// a module importing itself is the shortest cycle
+import "err_self.mydsl";

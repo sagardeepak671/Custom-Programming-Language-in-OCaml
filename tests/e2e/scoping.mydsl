@@ -1,0 +1,23 @@
+// Block scoping, shadowing, fresh variables per iteration, for-loop variable scope.
+int x := 1;
+{
+    int x := 2;          // shadows the outer x
+    x := x + 10;
+    Print(x);            // 12
+    {
+        Print(x);        // 12: inner blocks see the enclosing x
+        x := 100;        // updates the shadowing x, not the outer one
+    };
+    Print(x);            // 100
+};
+Print(x);                // 1: the outer x was never touched
+int total := 0;
+for (i := 1, i <= 3, 1) {
+    int x := i * 10;     // a fresh x every iteration
+    total := total + x;
+    if (i == 2) then { int total := -1; Print(total); };   // -1: shadow inside the if block
+};
+Print(total);            // 60
+int i := 42;
+for (i := 0, i < 2, 1) { Print(i); };   // 0, 1: the loop has its own i
+Print(i);                // 42

@@ -1,0 +1,8 @@
+// Scalar helpers; imports its own dependency relative to this file's directory.
+import "vectors.mydsl";
+function int square(int x) {
+    return x * x;
+};
+function float mean(floatvector 3 v) {
+    return (v[0] + v[1] + v[2]) / 3.0;
+};

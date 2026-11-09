@@ -1,0 +1,13 @@
+// String input: Input() reads the next value from standard input (or a file) in literal
+// syntax, so a string is written in double quotes and may contain spaces. Values of different
+// types may be mixed; each Input() takes the next one. Run with:
+//   ./mydsl --input tests/data/names.txt inputs/string_input.txt
+string first := Input();
+string second := Input();
+string empty := Input();
+int count := Input();
+Print("Hello, " + first + " and " + second + "!");
+Print(length(first));
+Print(substring(second, 0, 4));
+Print(length(empty) == 0);
+Print(count);

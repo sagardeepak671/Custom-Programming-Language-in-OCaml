@@ -1,0 +1,2 @@
+import "../../stdlib/fmath.mydsl";
+Print(exp_f(710.0));

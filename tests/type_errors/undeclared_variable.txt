@@ -1,0 +1,3 @@
+// 'total' is never declared.
+int count := 3;
+total := count * 2;

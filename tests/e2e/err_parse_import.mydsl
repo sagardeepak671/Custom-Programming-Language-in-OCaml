@@ -1,0 +1,5 @@
+function int f(int x) {
+    return x;
+};
+import lib/math_utils.mydsl;
+Print(f(1));

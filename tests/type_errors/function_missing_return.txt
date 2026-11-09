@@ -1,0 +1,8 @@
+function int sign(int x) {
+    if (x < 0) then {
+        return -1;
+    };
+    if (x > 0) then {
+        return 1;
+    };
+};

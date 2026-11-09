@@ -1,0 +1,4 @@
+function float half(float x) {
+    return x / 2.0;
+};
+Print(half(3));

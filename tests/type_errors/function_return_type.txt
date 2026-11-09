@@ -1,0 +1,3 @@
+function int half(int x) {
+    return to_float(x) / 2.0;
+};

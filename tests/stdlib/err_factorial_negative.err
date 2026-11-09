@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/math.mydsl' at line 85, column 23: factorial: the argument must not be negative, but n is -1 (in function 'factorial' called from line 3, column 7) (imported from the main program at line 1, column 1)

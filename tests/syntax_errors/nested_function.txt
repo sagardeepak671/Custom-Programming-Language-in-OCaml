@@ -1,0 +1,6 @@
+function int outer(int x) {
+    function int inner(int y) {
+        return y;
+    };
+    return inner(x);
+};

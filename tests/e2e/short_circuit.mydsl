@@ -1,0 +1,7 @@
+int z := 0;
+Print(z != 0 && 10 / z > 1);    // false, and 10 / z is never evaluated
+Print(z == 0 || 10 / z > 1);    // true
+bool ok := true;
+if (z > 0 && 1 / z == 1) then { ok := false; };
+Print(ok);                       // true
+Print(false && true || true);    // true

@@ -1,0 +1,4 @@
+// Calls a function the main program defines: a library cannot see its importer.
+function int uses_helper(int x) {
+    return helper(x) + 1;
+};

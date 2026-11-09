@@ -1,0 +1,19 @@
+// error(message) stops the program with your own message. Library functions use it for
+// arguments outside their domain; your functions can too. The program prints the first two
+// results, then the third call fails:
+//   Runtime error at line 11, column 9: percent: the value must be between 0 and 100, but it is 150 (in function 'percent' called from line 18, column 7)
+// Inside an imported function the message also names the file and the chain of imports, e.g.
+//   Runtime error in 'stdlib/math.mydsl' at line 83, column 23: factorial: the argument must not be negative, but n is -1 (in function 'factorial' called from ...) (imported from ...)
+import "../math.mydsl";
+
+function int percent(int value) {
+    if (value < 0 || value > 100) then {
+        error("percent: the value must be between 0 and 100, but it is " + to_string(value));
+    };
+    return clamp(value, 0, 100);
+};
+
+Print(percent(42));
+Print(percent(100));
+Print(percent(150));
+Print(percent(7));     // never reached

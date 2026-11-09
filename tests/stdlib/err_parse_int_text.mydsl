@@ -1,0 +1,2 @@
+import "../../stdlib/strings.mydsl";
+Print(parse_int("12a"));

@@ -1,0 +1,1 @@
+Import error in 'tests/modules/cycle/y.mydsl' at line 1, column 1: Circular import: 'tests/modules/cycle/x.mydsl' -> 'tests/modules/cycle/y.mydsl' -> 'tests/modules/cycle/x.mydsl' (a module cannot import itself, directly or through other modules) (imported from 'tests/modules/cycle/x.mydsl' at line 1, column 1; imported from the main program at line 1, column 1)

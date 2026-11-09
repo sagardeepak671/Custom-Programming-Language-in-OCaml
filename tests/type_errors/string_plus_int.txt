@@ -1,0 +1,3 @@
+string label := "count: ";
+int n := 3;
+Print(label + n);

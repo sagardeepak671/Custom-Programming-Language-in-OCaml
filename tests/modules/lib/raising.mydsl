@@ -1,0 +1,6 @@
+function int checked(int value) {
+    if (value < 0) then {
+        error("checked: the value must not be negative, but it is " + to_string(value));
+    };
+    return value;
+};

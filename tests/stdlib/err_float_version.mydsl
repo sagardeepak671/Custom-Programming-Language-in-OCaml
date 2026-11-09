@@ -1,0 +1,2 @@
+import "../../stdlib/math.mydsl";
+Print(sqrt_f(2.0));

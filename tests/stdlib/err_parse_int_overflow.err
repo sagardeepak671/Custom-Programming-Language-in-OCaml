@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/strings.mydsl' at line 208, column 88: Integer overflow: 9223372036854775800 + 8 does not fit in a 64-bit int (range -9223372036854775808 .. 9223372036854775807) (in function 'parse_int' called from line 2, column 7) (imported from the main program at line 1, column 1)

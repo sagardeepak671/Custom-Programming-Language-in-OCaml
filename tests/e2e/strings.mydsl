@@ -1,0 +1,27 @@
+// Strings end to end: empty strings, escapes, concatenation, comparison, functions, loops.
+string s := "";
+Print(s);
+Print(s == "");
+s := s + "a";
+s := s + "" + "b";
+Print(s);
+Print(s == "ab");
+Print(s != "ab");
+Print("tab\there" + "\n" + "\"quoted\" \\ backslash");
+function string wrap(string inner, string edge) {
+    return edge + inner + edge;
+};
+function int count_to(string target, string piece) {
+    string acc := "";
+    int n := 0;
+    while (acc != target) {
+        acc := acc + piece;
+        n := n + 1;
+        if (n > 10) then { return -1; };
+    };
+    return n;
+};
+Print(wrap("x", "|"));
+Print(wrap(wrap("", "-"), "+"));
+Print(count_to("ababab", "ab"));
+Print(count_to("abc", "ab"));

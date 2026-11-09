@@ -1,0 +1,2 @@
+import "b.mydsl";
+function int a() { return 1; };

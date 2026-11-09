@@ -1,0 +1,27 @@
+// A small library of your own, built on the standard library. It only defines functions (a
+// module may not have other top-level statements), imports what it needs relative to its own
+// location, and uses error(...) for arguments it cannot accept.
+import "../../fmath.mydsl";
+
+function float absolute_zero_celsius() {
+    return -273.15;
+};
+
+function bool is_valid_celsius(float celsius) {
+    return celsius >= absolute_zero_celsius();
+};
+
+// celsius converted to Fahrenheit; temperatures below absolute zero are rejected.
+function float to_fahrenheit(float celsius) {
+    if (!is_valid_celsius(celsius)) then {
+        error("to_fahrenheit: " + to_string(celsius) + " C is below absolute zero (" + to_string(absolute_zero_celsius()) + " C)");
+    };
+    return round_f(celsius * 1.8 * 10.0 + 320.0) / 10.0;   // one decimal
+};
+
+function string describe(float celsius) {
+    if (celsius < 0.0) then { return "freezing"; };
+    if (celsius < 15.0) then { return "cold"; };
+    if (celsius < 25.0) then { return "mild"; };
+    return "hot";
+};

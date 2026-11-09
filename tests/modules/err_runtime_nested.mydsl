@@ -1,0 +1,3 @@
+import "lib/failing.mydsl";
+Print(scaled_ratio(9, 3));
+Print(scaled_ratio(1, 0));

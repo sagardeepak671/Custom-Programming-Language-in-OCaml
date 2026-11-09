@@ -1,0 +1,17 @@
+// String values in the input are double-quoted literals; they may share lines with other
+// values, contain spaces and escapes, and sit between empty lines and comments.
+string greeting := Input();
+int times := Input();
+string name := Input();
+floatvector 2 v := Input();
+string empty := Input();
+string quoted := Input();
+string line := "";
+for (i := 0, i < times, 1) {
+    line := line + greeting;
+};
+Print(line + " " + name);
+Print(v);
+Print(length(empty));
+Print(quoted);
+Print(length(quoted));

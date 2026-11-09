@@ -1,0 +1,15 @@
+// length, substring and to_string, including the boundaries of substring.
+string s := "hello, world";
+Print(length(s));
+Print(length(""));
+Print(substring(s, 0, 5));
+Print(substring(s, 7, 5));
+Print(substring(s, 12, 0));
+Print(substring(s, 0, 0) == "");
+Print(substring(s, 0, length(s)) == s);
+Print(to_string(12) + "/" + to_string(-3.75) + "/" + to_string(false) + "/" + to_string("s"));
+Print(length(to_string(1000000)));
+function string initials(string a, string b) {
+    return substring(a, 0, 1) + "." + substring(b, 0, 1) + ".";
+};
+Print(initials("Grace", "Hopper"));

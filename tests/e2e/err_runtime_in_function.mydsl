@@ -1,0 +1,10 @@
+// A runtime error inside a function names the position in the body and the active calls.
+function float ratio(float a, float b) {
+    return a / b;
+};
+function float scaled(float x) {
+    return ratio(x, x - 1.0) * 2.0;
+};
+Print(scaled(3.0));
+Print(scaled(1.0));
+Print(scaled(2.0));

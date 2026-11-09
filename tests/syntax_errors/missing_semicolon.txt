@@ -1,0 +1,4 @@
+// The assignment on line 3 has no terminating ';'.
+int a := 1;
+a := a + 1
+Print(a);

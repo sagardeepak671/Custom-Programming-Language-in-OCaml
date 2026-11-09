@@ -1,0 +1,4 @@
+Print(1);
+if (true) then {
+  Print(2)
+};

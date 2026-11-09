@@ -1,0 +1,1 @@
+Type error at line 2, column 7: The message of error must be a string but is int (build it with to_string(...) and +)

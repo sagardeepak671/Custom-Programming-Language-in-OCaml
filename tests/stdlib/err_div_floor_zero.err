@@ -1,0 +1,1 @@
+Runtime error in 'stdlib/math.mydsl' at line 123, column 24: div_floor: the divisor must not be 0 (dividing 1) (in function 'div_floor' called from line 2, column 7) (imported from the main program at line 1, column 1)

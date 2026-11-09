@@ -1,0 +1,2 @@
+import "lib/vectors.mydsl"
+Print(1);

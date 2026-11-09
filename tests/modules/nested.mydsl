@@ -1,0 +1,3 @@
+// stats imports math_utils, which imports vectors: three levels, loaded in dependency order.
+import "lib/stats.mydsl";
+Print(variance([1.0, 2.0, 3.0]));

@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MyDSL debug view</title>
+<!--
+  Debugging page for the MyDSL tokenizer, parser, type checker and interpreter. Served by
+  `mydsl --serve`; the page itself contains no language logic: every change of the source is
+  POSTed to /api/parse and the C++ lexer/parser/checker return tokens, AST, types and errors as
+  JSON (see src/debug.cpp); Run POSTs to /api/run. The editor is CodeMirror 6 with a MyDSL mode
+  (web/editor/src, bundled into web/vendor/mydsl-editor.js and served by the binary itself as
+  /vendor/mydsl-editor.js); it only provides editing, highlighting and marks - the page talks to
+  it through the small interface of web/editor/src/main.js. Layout: the editor with the input/output/
+  variables panel below it, and a sidebar with the tokens and the AST; every panel can be hidden
+  (View buttons) and the gutters between them dragged. The layout is kept in localStorage.
+-->
+<style>
+  /* Every colour is a variable: the theme (web/editor/src/themes.js, chosen in the status bar)
+     sets them on :root at run time; these defaults are the "MyDSL Light" theme. */
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-alt: #f3f4f6; --border: #d8dbe0; --text: #1f2328; --muted: #6b7280;
+    --accent: #2563eb; --accent-bg: rgba(37, 99, 235, 0.16); --hover: rgba(0, 0, 0, 0.05);
+    --error: #b91c1c; --error-bg: rgba(185, 28, 28, 0.12); --error-border: rgba(185, 28, 28, 0.5);
+    --ok: #166534; --ok-fg: #ffffff; --ok-bg: rgba(22, 101, 52, 0.14); --warn: #d97706; --warn-bg: rgba(217, 119, 6, 0.16);
+    --cursor-bg: rgba(217, 119, 6, 0.25); --row-border: rgba(0, 0, 0, 0.05); --button-bg: #ffffff; --input-bg: #fffdf5;
+    --status-bg: #2563eb; --status-fg: #ffffff; --shadow: rgba(0, 0, 0, 0.15);
+    --kw: #7c3aed; --type: #0369a1; --builtin: #0f766e; --number: #b45309; --string: #15803d; --comment: #6b7280; --variable: #1f2328; --trace: #d97706;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --gutter: 6px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg);
+         display: flex; flex-direction: column; }
+  [hidden] { display: none !important; }
+  ::selection { background: var(--accent-bg); }
+  /* Title bar: name, actions, view toggles (like VS Code's title bar + toolbar). */
+  header { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 5px 10px; flex: 0 0 auto;
+           background: var(--panel-alt); border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 13px; font-weight: 600; margin: 0 8px 0 0; cursor: help; color: var(--text); }
+  header .hint { color: var(--muted); font-size: 12px; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button, select { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px solid var(--border);
+                   border-radius: 3px; background: var(--button-bg); color: var(--text); cursor: pointer; }
+  button:hover, select:hover { border-color: var(--accent); }
+  button:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+  select option { background: var(--panel); color: var(--text); }
+  #error { display: none; padding: 6px 12px; background: var(--error-bg); color: var(--error); flex: 0 0 auto;
+           border-bottom: 1px solid var(--error-border); font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  #error.show { display: block; }
+  #error.network { cursor: default; }
+
+  /* View toggles: one button per panel that can be hidden (state is kept in localStorage). */
+  .views { display: flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 12px; border-left: 1px solid var(--border); }
+  .views .label { color: var(--muted); font-size: 12px; margin-right: 2px; }
+  button.toggle { color: var(--muted); padding-left: 8px; }
+  button.toggle::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px;
+                          border: 1px solid currentColor; border-radius: 2px; vertical-align: -1px; }
+  button.toggle.on { color: var(--text); background: var(--accent-bg); border-color: var(--accent); }
+  button.toggle.on::before { background: var(--accent); border-color: var(--accent); }
+
+  /* Status bar (bottom, like VS Code): parse status, file status, cursor, theme. */
+  #statusbar { display: flex; align-items: center; gap: 14px; padding: 0 10px; height: 22px; flex: 0 0 auto; font-size: 12px;
+               background: var(--status-bg); color: var(--status-fg); border-top: 1px solid var(--border); }
+  #statusbar .item { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #statusbar .right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  #status.busy::after { content: " …"; }
+  #statusbar select { height: 18px; padding: 0 4px; font-size: 11px; background: transparent; color: inherit; border: 1px solid transparent; cursor: pointer; }
+  #statusbar select:hover { border-color: currentColor; }
+  #statusbar select option { color: var(--text); }
+  #file-status { font-weight: normal; text-transform: none; letter-spacing: 0; }
+  #file-status.error { font-weight: bold; text-decoration: underline; }
+  #file-status.ok::before { content: "✓ "; }
+
+  /* Layout: files | [editor over the output panel] | sidebar [tokens over AST]. Every pair is
+     separated by a gutter that can be dragged; sizes live in the flex-basis of the pane next to it. */
+  main { flex: 1; min-height: 0; display: flex; padding: 0; background: var(--bg); }
+  #workspace { flex: 1 1 0; min-width: 320px; min-height: 0; display: flex; flex-direction: column; }
+  #sidebar { flex: 0 1 36%; min-width: 240px; max-width: 70%; min-height: 0; display: flex; flex-direction: column; }
+  #editor-pane { flex: 1 1 0; min-height: 120px; }
+  #output-pane { flex: 0 1 280px; min-height: 150px; max-height: 70%; }
+  #tokens-pane { flex: 0 1 45%; min-height: 80px; }
+  #tokens-pane.fill { flex-grow: 1; flex-basis: 0 !important; } /* alone in the sidebar: take it all */
+  #ast-pane { flex: 1 1 0; min-height: 80px; }
+  .gutter { flex: 0 0 var(--gutter); position: relative; touch-action: none; user-select: none; background: var(--bg); }
+  .gutter.vertical { cursor: col-resize; }
+  .gutter.horizontal { cursor: row-resize; }
+  .gutter::after { content: ""; position: absolute; border-radius: 2px; background: var(--border); opacity: 0; transition: opacity .15s; }
+  .gutter.vertical::after { top: 50%; left: 2px; width: 2px; height: 36px; margin-top: -18px; }
+  .gutter.horizontal::after { left: 50%; top: 2px; height: 2px; width: 36px; margin-left: -18px; }
+  .gutter:hover::after, .gutter.active::after { opacity: 1; background: var(--accent); }
+  .gutter:hover, .gutter.active { background: var(--accent-bg); }
+  body.resizing-x { cursor: col-resize; } body.resizing-y { cursor: row-resize; }
+  body.resizing-x *, body.resizing-y * { user-select: none; }
+  body.resizing-x textarea, body.resizing-y textarea { pointer-events: none; }
+
+  .pane { display: flex; flex-direction: column; min-height: 0; background: var(--panel);
+          border: 1px solid var(--border); overflow: hidden; }
+  .pane h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+             margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--panel-alt);
+             display: flex; gap: 8px; align-items: center; flex: 0 0 auto; white-space: nowrap; overflow: hidden; }
+  .pane h2 .count { font-weight: normal; text-transform: none; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
+  .pane h2 .tools { margin-left: auto; display: flex; gap: 4px; flex: 0 0 auto; }
+  .pane h2 .tools button { padding: 1px 6px; font-size: 11px; }
+  .pane h2 .tools button.hide { color: var(--muted); }
+  .scroll { flex: 1; min-height: 0; overflow: auto; }
+
+  /* Files: the project tree (left, like the Explorer) and the tabs above the editor */
+  #files-pane { flex: 0 1 230px; min-width: 160px; max-width: 50%; min-height: 0; background: var(--panel-alt); }
+  #files-pane .folder-row { padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  #files-pane .folder-row select { flex: 1; min-width: 0; font-size: 12px; padding: 2px 4px; }
+  #files-tree { padding: 4px 0; font-size: 13px; }
+  #files-tree details { margin-left: 12px; }
+  #files-tree > details, #files-tree > .file { margin-left: 0; }
+  #files-tree summary { padding: 2px 8px; }
+  #files-tree summary:hover { background: var(--hover); }
+  #files-tree .file { display: flex; align-items: center; gap: 6px; padding: 2px 8px 2px 22px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #files-tree .file:hover { background: var(--hover); }
+  #files-tree .file.open { font-weight: 600; }
+  #files-tree .file.active { background: var(--accent-bg); }
+  #files-tree .file.dirty::after, #tabs .tab.dirty .name::after { content: " ●"; color: var(--warn); }
+  #files-tree .file.readonly::before, #tabs .tab.readonly .name::before { content: "🔒"; font-size: 10px; margin-right: 3px; }
+  #files-note { padding: 8px 10px; font-size: 12px; }
+  #tabs { display: flex; flex: 0 0 auto; overflow-x: auto; background: var(--panel-alt); border-bottom: 1px solid var(--border); min-height: 32px; }
+  #tabs .tab { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; height: 32px; font-size: 12px; border-right: 1px solid var(--border); cursor: pointer; white-space: nowrap; color: var(--muted); max-width: 260px; position: relative; }
+  #tabs .tab:hover { background: var(--hover); }
+  #tabs .tab.active { background: var(--panel); color: var(--text); box-shadow: inset 0 1px var(--accent); margin-bottom: -1px; border-bottom: 1px solid var(--panel); }
+  #tabs .tab .name { overflow: hidden; text-overflow: ellipsis; }
+  #tabs .tab .close { border: 0; background: none; padding: 0 3px; font-size: 13px; line-height: 1; color: var(--muted); border-radius: 3px; visibility: hidden; }
+  #tabs .tab:hover .close, #tabs .tab.active .close { visibility: visible; }
+  #tabs .tab .close:hover { background: var(--error-bg); color: var(--error); }
+  #tabs .tab.conflict .name { color: var(--error); }
+  #source-path { color: var(--text); font-weight: normal; text-transform: none; letter-spacing: 0; font-family: var(--mono); font-size: 12px; }
+  #save { font-weight: 600; }
+  #save:disabled { opacity: .5; cursor: default; }
+
+  /* Source editor: CodeMirror fills the host; its colours come from the theme. The fallback text
+     is only visible if the editor script fails to load. */
+  .editor { position: relative; flex: 1; min-height: 0; }
+  .editor .cm-editor { position: absolute; inset: 0; }
+  .editor .fallback { padding: 12px; color: var(--error); font-family: var(--mono); font-size: 13px; }
+  .pane h2 .shortcuts { text-transform: none; letter-spacing: 0; font-weight: normal; cursor: help; color: var(--muted); }
+  .pane h2 .shortcuts:hover { color: var(--accent); }
+
+  /* Tokens */
+  table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 12px; }
+  th, td { text-align: left; padding: 2px 8px; border-bottom: 1px solid var(--row-border); white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel-alt); color: var(--muted); font-weight: normal; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--hover); }
+  tr.selected { background: var(--accent-bg) !important; }
+  tr.at-cursor td:first-child { box-shadow: inset 3px 0 var(--accent); }
+  tr.error-token { color: var(--error); font-weight: bold; }
+  tr.kind-end { color: var(--muted); }
+  .kind { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 11px; background: var(--hover); }
+  .kind-word .kind { background: color-mix(in srgb, var(--kw) 18%, transparent); color: var(--kw); }
+  .kind-integer .kind, .kind-float .kind { background: color-mix(in srgb, var(--number) 18%, transparent); color: var(--number); }
+  .kind-string .kind { background: color-mix(in srgb, var(--string) 18%, transparent); color: var(--string); }
+  .kind-symbol .kind { background: var(--hover); }
+  .kind-end .kind { background: transparent; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .empty { padding: 12px; color: var(--muted); }
+
+  /* AST tree */
+  #ast { padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  details { margin-left: 14px; }
+  #ast > details { margin-left: 0; }
+  summary { cursor: pointer; list-style: none; padding: 1px 0; white-space: nowrap; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; display: inline-block; width: 14px; color: var(--muted); }
+  details[open] > summary::before { content: "▾"; }
+  details.leaf > summary::before { content: "·"; }
+  .node { padding: 1px 5px; border-radius: 3px; }
+  .node:hover { background: var(--hover); }
+  .node.selected { background: var(--accent-bg); outline: 1px solid var(--accent); }
+  .node.at-cursor { background: var(--cursor-bg); }
+  .node.selected.at-cursor { background: var(--accent-bg); }
+  .node.error-node { outline: 2px solid var(--error); background: var(--error-bg); }
+  .type { color: var(--type); }
+  .op { font-weight: bold; }
+  .stmt .op { color: var(--kw); } .expr .op { color: var(--builtin); } .param .op { color: var(--number); }
+  .label { color: var(--muted); }
+  .value { color: var(--number); }
+  .loc { color: var(--muted); font-size: 11px; margin-left: 6px; }
+  #legend { font-size: 11px; color: var(--muted); padding: 4px 10px; border-top: 1px solid var(--border); flex: 0 0 auto; }
+
+  /* Program input, output and variables (the panel below the editor) */
+  #run { background: var(--ok); color: var(--ok-fg); border-color: var(--ok); font-weight: 600; }
+  #run:hover { filter: brightness(1.1); }
+  #run:disabled { opacity: .6; cursor: wait; }
+  #stdin { flex: 0 0 auto; height: 52px; margin: 0; padding: 4px 10px; border: 0; border-bottom: 1px solid var(--border);
+           font: 12px/16px var(--mono); resize: vertical; outline: none; background: var(--input-bg); color: var(--text); }
+  #stdin:focus { box-shadow: inset 0 0 0 1px var(--accent); }
+  #stdin::placeholder { color: var(--muted); }
+  #run-row { flex: 1 1 0; min-height: 0; display: flex; }
+  #output-col { flex: 1 1 0; min-width: 160px; min-height: 0; display: flex; flex-direction: column; }
+  #variables-col { flex: 0 1 40%; min-width: 160px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+  #gutter-variables { background: var(--panel-alt); }
+  #output { flex: 1 1 0; min-height: 0; margin: 0; padding: 8px 10px; overflow: auto; font: 13px/20px var(--mono); white-space: pre; }
+  #output-pane.stale #output, #output-pane.stale #variables-scroll { opacity: .45; }
+  #output-pane.stale #output-header::after { content: "source changed since this run"; font-weight: normal; text-transform: none; letter-spacing: 0; color: var(--error); }
+  #output .runtime-error { color: var(--error); font-weight: bold; cursor: pointer; }
+  #output .trace-frame { color: var(--trace); cursor: pointer; }
+  #output .trace-frame.foreign { cursor: default; }
+  #output .trace-frame:hover, #output .runtime-error:hover { text-decoration: underline; }
+  #output .trace-frame.foreign:hover { text-decoration: none; }
+  #output .trace-omitted { color: var(--muted); }
+  #output .note { color: var(--muted); }
+  /* Variable inspector: the top-level variables after the run, straight from the interpreter. */
+  #variables-scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
+  #variables td.value { white-space: pre; color: var(--number); }
+  #variables td.name { font-weight: bold; }
+  #variables td.type { color: var(--type); }
+  #variables tr.changed td.name::after { content: " ✎"; color: var(--muted); font-weight: normal; }
+</style>
+</head>
+<body>
+<header>
+  <h1 title="Tokens, AST and types come from the C++ tokenizer, parser and type checker via POST /api/parse as you type; POST /api/run executes only when you press Run.">MyDSL debug view</h1>
+  <button id="parse" title="Ctrl+Enter: parse and type-check now (also happens automatically while you type)">Parse</button>
+  <button id="run" title="Ctrl+Shift+Enter: parse, type-check and execute the program (never runs automatically)">▶ Run</button>
+  <button id="save" title="Ctrl+S: write the active file back to disk" disabled>Save</button>
+  <select id="examples" title="Loads a program from inputs/ into the Scratch tab"><option value="">Load example…</option></select>
+  <span class="views" role="group" aria-label="Panels">
+    <span class="label">View</span>
+    <button class="toggle" id="toggle-files" aria-pressed="true" title="Show or hide the project files">Files</button>
+    <button class="toggle" id="toggle-output" aria-pressed="true" title="Show or hide the input / output / variables panel below the editor">Output</button>
+    <button class="toggle" id="toggle-tokens" aria-pressed="true" title="Show or hide the token list">Tokens</button>
+    <button class="toggle" id="toggle-ast" aria-pressed="true" title="Show or hide the AST with the inferred types">AST</button>
+  </span>
+  <span class="hint" title="Panels are separated by draggable bars; double-click a bar to reset its size. The layout is remembered by the browser.">Drag the bars between panels to resize · double-click resets</span>
+</header>
+<div id="error" title="Click to jump to the error"></div>
+<main>
+  <section class="pane" id="files-pane">
+    <h2>Files <span class="count muted" id="files-root"></span>
+      <span class="tools"><button id="files-refresh" title="Re-read the folder from disk">↻</button><button class="hide" id="hide-files" title="Hide this panel (View ▸ Files shows it again)">hide</button></span></h2>
+    <div class="folder-row"><span>Folder</span><select id="project-folder" title="The project folder: a folder below the directory the server was started in. Switching closes the open files."></select></div>
+    <div class="scroll" id="files-scroll"><div id="files-tree"></div></div>
+    <div id="files-note" class="empty"></div>
+  </section>
+  <div class="gutter vertical" id="gutter-files" title="Drag to resize the file panel; double-click to reset"></div>
+  <div id="workspace">
+    <section class="pane" id="editor-pane">
+      <h2>Source <span class="count" id="source-path" title="The active tab"></span>
+        <span class="tools"><span class="shortcuts" title="Editor shortcuts (Cmd instead of Ctrl on macOS)
+Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y): undo / redo
+Ctrl+F: find and replace   ·   Ctrl+D: select the next occurrence of the selection
+Tab / Shift+Tab: indent / outdent (Escape then Tab moves the focus out of the editor)
+Ctrl+/: toggle // comment   ·   Alt+↑ / Alt+↓: move the line   ·   Shift+Alt+↓: copy the line
+Ctrl+Space: open the completion list (it also opens as you type a name; ↑/↓ choose, Enter or Tab accept, Escape closes; Tab also jumps between the fields of an inserted template)
+Ctrl+S: save the active file   ·   Ctrl+Enter: parse now   ·   Ctrl+Shift+Enter: run
+Enter indents the new line like the previous one (one level more after an opening bracket); typing a closing bracket outdents it.">⌨ shortcuts</span></span></h2>
+      <div id="tabs"></div>
+      <div class="editor" id="editor"><div class="fallback">The editor script (/vendor/mydsl-editor.js) did not load. Rebuild with <code>make</code>; the file is generated in web/editor (see README "Browser view").</div></div>
+    </section>
+    <div class="gutter horizontal" id="gutter-output" title="Drag to resize the output panel; double-click to reset"></div>
+    <section class="pane" id="output-pane">
+      <h2>Input <span class="count muted">standard input for Input(); Input("file") reads files relative to the server's directory</span>
+        <span class="tools"><button class="hide" id="hide-output" title="Hide this panel (View ▸ Output shows it again)">hide</button></span></h2>
+      <textarea id="stdin" spellcheck="false" placeholder='Values in literal syntax, e.g.  [1., 2., 3., 4., 5.]  4  "a string in quotes"'></textarea>
+      <div id="run-row">
+        <div id="output-col">
+          <h2 class="run-header" id="output-header">Output <span class="count" id="run-status"></span> <span class="count muted" id="run-file" title="The tab that was run"></span></h2>
+          <pre id="output"><span class="note">Press ▶ Run to execute the program with the C++ interpreter. Output appears here.</span></pre>
+        </div>
+        <div class="gutter vertical" id="gutter-variables" title="Drag to resize the variable inspector; double-click to reset"></div>
+        <div id="variables-col">
+          <h2 class="run-header">Variables <span class="count" id="variables-status"></span></h2>
+          <div class="scroll" id="variables-scroll">
+            <table><thead><tr><th>name</th><th>type</th><th>value</th></tr></thead><tbody id="variables"></tbody></table>
+            <div class="empty" id="variables-note">The top-level variables with their final values (as held by the C++ interpreter) appear here after ▶ Run. ✎ marks variables whose value differs from their initializer.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="gutter vertical" id="gutter-sidebar" title="Drag to resize the sidebar; double-click to reset"></div>
+  <aside id="sidebar">
+    <section class="pane" id="tokens-pane">
+      <h2>Tokens <span class="count" id="token-count"></span>
+        <span class="tools"><button class="hide" id="hide-tokens" title="Hide this panel (View ▸ Tokens shows it again)">hide</button></span></h2>
+      <div class="scroll" id="tokens-scroll">
+        <table><thead><tr><th>#</th><th>kind</th><th>text</th><th>from</th><th>to</th></tr></thead><tbody id="tokens"></tbody></table>
+      </div>
+    </section>
+    <div class="gutter horizontal" id="gutter-ast" title="Drag to resize; double-click to reset"></div>
+    <section class="pane" id="ast-pane">
+      <h2>AST <span class="count" id="stmt-count"></span>
+        <span class="tools"><button id="expand">expand all</button><button id="collapse">collapse all</button><button class="hide" id="hide-ast" title="Hide this panel (View ▸ AST shows it again)">hide</button></span></h2>
+      <div class="scroll" id="ast-scroll"><div id="ast"></div></div>
+      <div id="legend">Click a token or node to highlight it in the source; move the cursor in the source to find the token and innermost node under it. ▸ toggles children. <span class="type">: type</span> is the inferred type; a type error outlines the node it was reported on. After ▶ Run, a runtime error is outlined in red and the call sites of its trace in orange.</div>
+    </section>
+  </aside>
+</main>
+<footer id="statusbar">
+  <span class="item" id="status" title="The parser's verdict on the active tab (updates as you type)">ready</span>
+  <span class="item" id="file-status"></span>
+  <span class="right">
+    <span class="item" id="source-pos" title="Cursor position"></span>
+    <span class="item" title="Indentation">Spaces: 4</span>
+    <span class="item"><label for="theme" title="Colour theme (page and editor)">Theme</label> <select id="theme"></select></span>
+    <span class="item" title="Language mode">MyDSL</span>
+  </span>
+</footer>
+
+<script src="vendor/mydsl-editor.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const tokensBody = $('tokens'), astRoot = $('ast');
+const errorBox = $('error'), status = $('status');
+const DEFAULT_SOURCE = `// Edit me. The tokens and the AST update as you type. Open a file from the Files panel to work on disk.
+int a := 1;
+int i := 1;
+int num := 5;
+while (i <= num) {
+    a := a * i;
+    i := i + 1;
+};
+Print(a);
+`;
+
+// ---- state -------------------------------------------------------------------------
+let editor = null;          // the CodeMirror wrapper (created below, after the run section; see web/editor/src/main.js)
+let sourceText = '';        // the editor's text (kept in sync by sourceChanged/setSource)
+let result = null;          // last response from /api/parse
+let language = null;        // /api/language: keywords and builtins with descriptions (for the completion)
+let lastParsed = null;      // the last /api/parse response that had an AST (symbols while the text does not parse)
+let lineStarts = [0];       // offset of the first character of each line of the current text
+let selection = null;       // {begin, end} highlighted in the source (offsets)
+let errorOffset = null;     // offset (in the active tab) of the reported error, if any - see computeMarks
+let traceOffsets = [];      // offsets (in the active tab) of the call sites of a runtime error's call trace
+let lastRun = null;         // {tab, data, at} of the last run: its error and trace are marked in every tab they touch
+let editSerial = 0;         // grows with every edit and run; a tab edited after the run (editedAt > at) shows no run marks
+let parseSerial = 0;        // only the latest parse request may render its result
+let timer = null;
+
+// ---- positions ---------------------------------------------------------------------
+function computeLineStarts(text) {
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
+  return starts;
+}
+// {line, column} (1-based, from the C++ side) -> character offset in the textarea.
+function offsetOf(loc) {
+  const line = Math.min(Math.max(loc.line, 1), lineStarts.length);
+  return Math.min(lineStarts[line - 1] + loc.column - 1, sourceText.length);
+}
+function lineOf(offset) {
+  let lo = 0, hi = lineStarts.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (lineStarts[mid] <= offset) lo = mid; else hi = mid - 1; }
+  return lo + 1;
+}
+const fmt = loc => `${loc.line}:${loc.column}`;
+const rangeText = n => `${fmt(n.begin)}–${fmt(n.end)}`;
+
+// ---- source highlighting -----------------------------------------------------------
+const escapeHtml = s => s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+// The marks shown in the editor: the selected token/node (blue), the call sites of a runtime
+// error's trace (orange) and the error position (red; one character, or a box after the text
+// when the error is at the end of the input).
+function marks() {
+  const ranges = [];
+  if (selection) ranges.push({ from: selection.begin, to: selection.end, cls: 'selected' });
+  for (const t of traceOffsets) ranges.push({ from: t, to: t + 1, cls: 'trace' });
+  if (errorOffset !== null) ranges.push({ from: errorOffset, to: errorOffset + 1, cls: 'error' });
+  return ranges;
+}
+function renderMarks() { editor.setMarks(marks()); }
+function highlightSource(begin, end) {
+  selection = { begin, end };
+  renderMarks();
+  editor.scrollTo(begin);
+}
+
+// ---- tokens ------------------------------------------------------------------------
+function renderTokens(tokens, error) {
+  tokensBody.innerHTML = '';
+  $('token-count').textContent = tokens.length ? `${tokens.length} tokens` : '';
+  tokens.forEach((t, i) => {
+    const row = document.createElement('tr');
+    row.className = `kind-${t.kind}`;
+    const position = errorPosition(error);
+    const errorHere = !!position && position.line === t.begin.line && position.column === t.begin.column;
+    if (errorHere) row.classList.add('error-token');
+    const text = t.kind === 'string' ? JSON.stringify(t.text) : t.kind === 'end' ? '' : t.text;
+    row.innerHTML = `<td class="muted">${i}</td><td><span class="kind">${t.kind}</span></td>` +
+                    `<td>${escapeHtml(text)}</td><td>${fmt(t.begin)}</td><td>${fmt(t.end)}</td>`;
+    row.title = errorHere ? 'The error was reported at this token' : 'Click to highlight in the source';
+    row.addEventListener('click', () => {
+      selectRow(row);
+      highlightSource(offsetOf(t.begin), Math.max(offsetOf(t.end), offsetOf(t.begin) + (t.kind === 'end' ? 1 : 0)));
+    });
+    t.row = row;
+    tokensBody.appendChild(row);
+  });
+}
+function selectRow(row) {
+  document.querySelectorAll('tr.selected, .node.selected').forEach(e => e.classList.remove('selected'));
+  if (row) row.classList.add('selected');
+}
+
+// ---- AST ---------------------------------------------------------------------------
+// Human-friendly labels for the children of each node kind (see include/mydsl.hpp).
+function children(node) {
+  const out = [];
+  const add = (label, child) => { if (child) out.push({ label, child }); };
+  if (node.node === 'statement') {
+    const e = node.exprs, b = node.body;
+    switch (node.op) {
+      case 'declare': case 'assign': case 'print': add('value', e[0]); break;
+      case 'assign_index': e.slice(0, -1).forEach((x, i) => add(e.length === 3 ? ['row', 'column'][i] : 'index', x)); add('value', e[e.length - 1]); break;
+      case 'if': add('condition', e[0]); add('then', b[0]); add('else', b[1]); break;
+      case 'while': add('condition', e[0]); add('body', b[0]); break;
+      case 'for': add('initial', e[0]); add('condition', e[1]); add('step', e[2]); add('body', b[0]); break;
+      case 'function': (node.params || []).forEach((p, i) => add(`param ${i}`, p)); add('body', b[0]); break;
+      case 'return': add('value', e[0]); break;
+      case 'block': b.forEach((s, i) => add(String(i), s)); break;
+      default: e.forEach((x, i) => add(`exprs[${i}]`, x)); b.forEach((s, i) => add(`body[${i}]`, s));
+    }
+  } else if (node.node === 'expression') {
+    const a = node.args;
+    switch (node.op) {
+      case 'binary': add('left', a[0]); add('right', a[1]); break;
+      case 'unary': add('operand', a[0]); break;
+      case 'index': add('target', a[0]); if (a.length === 3) { add('row', a[1]); add('column', a[2]); } else add('index', a[1]); break;
+      case 'call': a.forEach((x, i) => add(`arg ${i}`, x)); break;
+      default: a.forEach((x, i) => add(String(i), x));
+    }
+  }
+  return out;
+}
+function describe(node) {
+  const parts = [`<span class="op">${escapeHtml(node.op)}</span>`];
+  if (node.declaration) parts.push(`<span class="value">${escapeHtml(node.declaration)}</span>`);
+  if (node.name !== undefined) parts.push(node.op === 'string' ? `<span class="value">${escapeHtml(JSON.stringify(node.name))}</span>` : escapeHtml(node.name));
+  if (node.params) parts.push(`<span class="muted">(${node.params.map(p => escapeHtml(`${p.declaration} ${p.name}`)).join(', ')})</span>`);
+  if (node.value !== undefined) parts.push(`<span class="value">${escapeHtml(node.value)}</span>`);
+  if (node.shape) parts.push(`<span class="muted">[${node.shape.rank === 2 ? node.shape.rows + ',' + node.shape.cols : node.shape.rows}]</span>`);
+  if (node.type !== undefined) parts.push(`<span class="type" title="type inferred by the C++ type checker">: ${escapeHtml(node.type)}</span>`);
+  return parts.join(' ');
+}
+function atError(node) {
+  const error = result && result.error;
+  if (!error || (error.stage !== 'Type' && error.stage !== 'Import')) return false; // lexing/parse errors leave no AST
+  const position = errorPosition(error);
+  return !!position && node.location.line === position.line && node.location.column === position.column;
+}
+function renderNode(node, label) {
+  const details = document.createElement('details');
+  details.open = true;
+  const kids = children(node);
+  if (!kids.length) details.classList.add('leaf');
+  const summary = document.createElement('summary');
+  const span = document.createElement('span');
+  span.className = `node ${node.node === 'statement' ? 'stmt' : node.node === 'parameter' ? 'param' : 'expr'}`;
+  if (atError(node)) { span.classList.add('error-node'); details.classList.add('has-error'); }
+  span.innerHTML = (label ? `<span class="label">${escapeHtml(label)}:</span> ` : '') + describe(node) +
+                   `<span class="loc" title="begin–end (line:column); location ${fmt(node.location)}">${rangeText(node)}</span>`;
+  span.title = `${node.node} "${node.op}" at ${fmt(node.location)}, spanning ${rangeText(node)}`;
+  span.addEventListener('click', ev => {
+    ev.preventDefault(); // select without toggling; the ▸ marker (or double-click) toggles
+    selectRow(span);
+    highlightSource(offsetOf(node.begin), offsetOf(node.end));
+  });
+  span.addEventListener('dblclick', ev => { ev.preventDefault(); details.open = !details.open; });
+  summary.appendChild(span);
+  details.appendChild(summary);
+  for (const k of kids) details.appendChild(renderNode(k.child, k.label));
+  node.element = span; node.details = details;
+  return details;
+}
+function renderAst(ast) {
+  astRoot.innerHTML = '';
+  if (!ast) { astRoot.innerHTML = '<div class="empty">No AST: fix the syntax error above.</div>'; $('stmt-count').textContent = ''; return; }
+  $('stmt-count').textContent = `${ast.length} statement${ast.length === 1 ? '' : 's'}`;
+  if (!ast.length) astRoot.innerHTML = '<div class="empty">Empty program (no statements).</div>';
+  ast.forEach(s => astRoot.appendChild(renderNode(s, '')));
+  const failed = astRoot.querySelector('.error-node');
+  if (failed) failed.scrollIntoView({ block: 'center' });
+}
+$('expand').addEventListener('click', () => astRoot.querySelectorAll('details').forEach(d => d.open = true));
+$('collapse').addEventListener('click', () => astRoot.querySelectorAll('details').forEach(d => d.open = false));
+
+// ---- cursor -> token / innermost node ----------------------------------------------
+function contains(node, offset) { return offsetOf(node.begin) <= offset && offset < offsetOf(node.end); }
+function deepest(nodes, offset) {
+  for (const n of nodes) {
+    if (!contains(n, offset)) continue;
+    return deepest(children(n).map(k => k.child), offset) || n;
+  }
+  return null;
+}
+function trackCursor() {
+  const offset = editor.getCursor();
+  $('source-pos').textContent = `line ${lineOf(offset)}, column ${offset - lineStarts[lineOf(offset) - 1] + 1}`;
+  document.querySelectorAll('.at-cursor').forEach(e => e.classList.remove('at-cursor'));
+  if (!result) return;
+  const token = result.tokens.find(t => t.kind !== 'end' && offsetOf(t.begin) <= offset && offset < offsetOf(t.end));
+  if (token && token.row) { token.row.classList.add('at-cursor'); token.row.scrollIntoView({ block: 'nearest' }); }
+  const node = result.ast && deepest(result.ast, offset);
+  if (node) {
+    node.element.classList.add('at-cursor');
+    for (let d = node.details.parentElement; d && d !== astRoot; d = d.parentElement) if (d.tagName === 'DETAILS') d.open = true;
+    node.element.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+// ---- errors and status -------------------------------------------------------------
+// The message line of an error, as the command line prints it: an error inside an imported
+// file names the file and the chain of imports that led there (innermost first).
+function describeError(error) {
+  let text = `${error.stage} error ${error.file ? `in '${error.file}' ` : ''}at line ${error.line}, column ${error.column}: ${error.message}`;
+  if (error.imports && error.imports.length)
+    text += ' (' + error.imports.map(site => `imported from ${site.file ? `'${site.file}'` : 'the main program'} at line ${site.line}, column ${site.column}`).join('; ') + ')';
+  return text;
+}
+// The position of an error in the editor: the reported line/column, or - when the error is
+// located in an imported file - the innermost call site of its trace that lies in the main
+// program (runtime errors), else the import statement of the main program that led to the file.
+function errorPosition(error) {
+  if (!error) return null;
+  if (!error.file) return { line: error.line, column: error.column };
+  const frame = (error.trace || []).find(f => !f.file);
+  if (frame) return { line: frame.line, column: frame.column };
+  const site = (error.imports || []).filter(s => !s.file).pop();
+  return site ? { line: site.line, column: site.column } : null;
+}
+// A file named in an error or a trace frame that can be opened in a tab: a project file (the
+// server reports those relative to its directory); files outside the project are absolute.
+const openable = file => !!file && !file.startsWith('/');
+function showError(error) {
+  errorBox.classList.remove('network');
+  if (!error) { errorBox.classList.remove('show'); computeMarks(); return; }
+  errorBox.textContent = describeError(error);
+  errorBox.classList.add('show');
+  errorBox.title = openable(error.file) ? `Click to open ${error.file} at line ${error.line}, column ${error.column}` :
+                   error.file ? 'Click to jump to the import of the file (the file itself is outside the project)' : 'Click to jump to the error';
+  computeMarks();
+}
+errorBox.addEventListener('click', () => {
+  if (errorBox.classList.contains('network') || !result || !result.error) return;
+  goTo(result.error, activeTab);
+});
+// Shows the position of an error or a trace frame ({file, line, column}; file "" = the main
+// program, which was in `tab`): opens the project file in its tab, or returns to `tab`. An
+// error inside a file outside the project can only be shown at its call/import site in `tab`.
+function goTo(site, tab) {
+  const jump = () => jumpTo(offsetOf({ line: site.line, column: site.column }));
+  if (openable(site.file)) {
+    const open = tabs.find(t => t.path === site.file);
+    if (open) { if (open !== activeTab) activateTab(open); jump(); }
+    else openFile(site.file).then(opened => { if (opened) jump(); }); // fetched, then shown
+  } else if (site.file) {
+    const position = errorPosition(site);
+    if (!position || !tabs.includes(tab)) return;
+    if (tab !== activeTab) activateTab(tab);
+    jumpTo(offsetOf(position));
+  } else {
+    if (!tabs.includes(tab)) return;
+    if (tab !== activeTab) activateTab(tab);
+    jump();
+  }
+}
+// The marks of the active tab: the parse error of its own text (at the import/call site when
+// the error lies in an imported file), and - unless the tab was edited since - the error and
+// the trace frames of the last run that lie in this tab: the main program's positions in the
+// tab that was run, an imported file's positions in that file's tab.
+function computeMarks() {
+  errorOffset = null; traceOffsets = [];
+  if (result && result.error) { const position = errorPosition(result.error); if (position) errorOffset = offsetOf(position); }
+  const run = lastRun;
+  if (run && run.data.error && !(activeTab.editedAt > run.at)) {
+    const error = run.data.error, inRunTab = activeTab === run.tab, here = site => offsetOf({ line: site.line, column: site.column });
+    const inThisFile = site => !!site.file && activeTab.kind === 'file' && activeTab.path === site.file;
+    if ((!error.file && inRunTab) || inThisFile(error)) errorOffset = here(error);
+    else if (error.file && inRunTab && errorOffset === null) { const position = errorPosition(error); if (position) errorOffset = offsetOf(position); }
+    for (const frame of error.trace || []) if ((!frame.file && inRunTab) || inThisFile(frame)) traceOffsets.push(here(frame));
+  }
+  renderMarks();
+}
+
+// ---- talking to the C++ parser -----------------------------------------------------
+// Parses the active tab's text as it is in the editor, as the file it belongs to (its imports
+// resolve relative to it), with the unsaved texts of the other tabs standing in for their
+// files on disk. A result is dropped when a newer parse was started or the tab changed.
+async function parseNow() {
+  const text = sourceText, tab = activeTab, serial = ++parseSerial;
+  lineStarts = computeLineStarts(text);
+  if (tab.kind === 'scratch') localStorage.setItem('mydsl-source', text);
+  status.textContent = 'parsing'; status.classList.add('busy');
+  const started = performance.now();
+  let data;
+  try {
+    const response = await fetch('/api/parse' + pathQuery(tab), { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: overlayPrefix(tab) + text });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    data = await response.json();
+  } catch (e) {
+    if (serial !== parseSerial) return;
+    status.classList.remove('busy'); status.textContent = 'server unreachable';
+    errorBox.textContent = `Cannot reach the mydsl server (${e.message}). Is "./mydsl --serve" still running?`;
+    errorBox.classList.add('show', 'network');
+    return;
+  }
+  if (serial !== parseSerial || text !== sourceText || tab !== activeTab) return; // superseded by newer input or another tab
+  applyResult(data, Math.max(1, Math.round(performance.now() - started)));
+}
+// Renders a /api/parse response for the text currently in the editor.
+function applyResult(data, millis) {
+  result = data;
+  if (data.ast) lastParsed = data;
+  selection = null;
+  showError(data.error);
+  renderTokens(data.tokens, data.error);
+  renderAst(data.ast);
+  trackCursor();
+  status.classList.remove('busy');
+  status.textContent = data.error ? `${data.error.stage.toLowerCase()} error` :
+    `ok · ${data.tokens.length} tokens · ${data.ast.length} statements · ${millis} ms`;
+}
+function scheduleParse() { clearTimeout(timer); timer = setTimeout(parseNow, 200); }
+
+// Every edit (typing, undo, paste, loading an example): the earlier marks keep their old
+// offsets until the re-parse 200 ms later; a previous run's output is marked as stale.
+function sourceChanged() {
+  sourceText = editor.getValue();
+  selection = null;
+  lineStarts = computeLineStarts(sourceText);
+  textEdited(); // files and tabs: dirty marks, session, editedAt
+  computeMarks();
+  scheduleParse();
+  if (runStatus.textContent) outputPane.classList.add('stale');
+}
+function parseImmediately() { clearTimeout(timer); parseNow(); }
+$('parse').addEventListener('click', parseImmediately);
+$('examples').addEventListener('change', ev => {
+  const example = examples.find(x => x.name === ev.target.value);
+  if (example) { activateTab(scratchTab()); editor.setValue(example.source); parseImmediately(); }
+  ev.target.value = '';
+});
+let examples = [];
+fetch('/api/examples').then(r => r.json()).then(data => {
+  examples = data.examples;
+  for (const x of examples) { const o = document.createElement('option'); o.value = o.textContent = x.name; $('examples').appendChild(o); }
+}).catch(() => {});
+
+// ---- running the program (only on demand, never while typing) ---------------------------
+const outputPane = $('output-pane'), outputBox = $('output'), runStatus = $('run-status'), runButton = $('run'), stdinBox = $('stdin');
+const variablesBody = $('variables'), variablesStatus = $('variables-status'), variablesNote = $('variables-note');
+// /api/run body: "<source byte count>\n" + source + input (the server has no JSON parser).
+function runRequestBody(sourceText, inputText) {
+  return `${new TextEncoder().encode(sourceText).length}\n${sourceText}${inputText}`;
+}
+// The error of a run: the message line (click: go to the position - in the tab that was run,
+// or in the tab of the imported file it lies in, opened if needed), then one line per call of
+// the trace, innermost first (click: go to the call site, likewise). The positions are marked
+// in the tabs they lie in: the failing position in red, the call sites in orange.
+function renderRunError(error, tab) {
+  const line = document.createElement('span');
+  line.className = 'runtime-error';
+  line.textContent = describeError(error);
+  line.title = openable(error.file) ? `Click to open ${error.file} at line ${error.line}, column ${error.column}` :
+               error.file ? (errorPosition(error) ? 'Click to jump to the call site in the program (the file itself is outside the project)' : '') : 'Click to jump to the error';
+  if (line.title) line.addEventListener('click', () => goTo(error, tab));
+  outputBox.appendChild(line);
+  for (const frame of error.trace || []) {
+    outputBox.appendChild(document.createTextNode('\n'));
+    const item = document.createElement('span');
+    const reachable = !frame.file || openable(frame.file);
+    item.className = reachable ? 'trace-frame' : 'trace-frame foreign';
+    item.textContent = `  ↳ in function '${frame.function}' called from line ${frame.line}, column ${frame.column}` + (frame.file ? ` of '${frame.file}'` : '') + (frame.repeats > 1 ? ` [${frame.repeats} times]` : '');
+    if (reachable) { // a call site outside the project cannot be shown in the editor
+      item.title = frame.file ? `Click to open ${frame.file} at the call site` : 'Click to jump to the call site';
+      item.addEventListener('click', () => goTo(frame, tab));
+    }
+    outputBox.appendChild(item);
+  }
+  if (error.omitted) {
+    outputBox.appendChild(document.createTextNode('\n'));
+    const more = document.createElement('span');
+    more.className = 'trace-omitted';
+    more.textContent = `  … ${error.omitted} more call(s)`;
+    outputBox.appendChild(more);
+  }
+}
+// The variable inspector: name, type and value of every top-level variable, exactly as the
+// C++ interpreter holds them when the run ends (or fails). Clicking a row highlights the
+// declaration in the source.
+function renderVariables(variables, error) {
+  variablesBody.innerHTML = '';
+  variablesNote.textContent = '';
+  if (!variables) { variablesStatus.textContent = ''; return; }
+  if (!variables.length) {
+    variablesStatus.textContent = '';
+    variablesNote.textContent = error ? '(no top-level variable had a value when the error occurred)' : '(the program has no top-level variables)';
+    return;
+  }
+  variablesStatus.textContent = `${variables.length} variable${variables.length === 1 ? '' : 's'}` + (error ? ' · values at the time of the error' : '');
+  for (const v of variables) {
+    const row = document.createElement('tr');
+    const declaration = result && result.ast && result.ast.find(s => s.op === 'declare' && s.name === v.name);
+    const initial = declaration && declaration.exprs[0] && declaration.exprs[0].op === 'literal' ? declaration.exprs[0].value : null;
+    if (initial !== null && initial !== v.value) row.classList.add('changed');
+    row.innerHTML = `<td class="name">${escapeHtml(v.name)}</td><td class="type">${escapeHtml(v.type)}</td><td class="value">${escapeHtml(v.value)}</td>`;
+    row.title = declaration ? 'Click to highlight the declaration in the source' : '';
+    if (declaration) row.addEventListener('click', () => { selectRow(row); highlightSource(offsetOf(declaration.begin), offsetOf(declaration.end)); });
+    row.variable = v;
+    variablesBody.appendChild(row);
+  }
+}
+// Shows the result of running `tab` (the active tab unless the user switched meanwhile).
+function applyRunResult(data, tab = activeTab) {
+  lastRun = { tab, data, at: ++editSerial };
+  outputPane.classList.remove('stale');
+  outputBox.textContent = '';
+  $('run-file').textContent = tab.kind === 'file' ? tab.path : 'Scratch';
+  if (data.output) outputBox.appendChild(document.createTextNode(data.output));
+  if (data.error) {
+    if (data.output && !data.output.endsWith('\n')) outputBox.appendChild(document.createTextNode('\n'));
+    renderRunError(data.error, tab);
+    runStatus.textContent = `${data.error.stage.toLowerCase()} error after ${data.millis} ms`;
+  } else {
+    if (!data.output) { const note = document.createElement('span'); note.className = 'note'; note.textContent = '(the program produced no output)'; outputBox.appendChild(note); }
+    runStatus.textContent = `finished in ${data.millis} ms`;
+  }
+  if (data.unsaved && data.unsaved.length) runStatus.textContent += ` · with the unsaved text of ${data.unsaved.join(', ')}`;
+  computeMarks();
+  renderVariables(data.variables, data.error);
+  if (tab !== activeTab) outputPane.classList.add('stale'); // the result belongs to another tab
+}
+function jumpTo(offset) { editor.setCursor(offset); editor.focus(); trackCursor(); }
+// Runs the active tab's text as it is in the editor (never a saved copy or another tab), as
+// its file, with the unsaved texts of the other open files standing in for the disk versions.
+async function runNow() {
+  clearTimeout(timer);
+  const text = sourceText, tab = activeTab, prefix = overlayPrefix(tab), unsaved = dirtyFiles().filter(t => t !== tab).map(t => t.path);
+  runButton.disabled = true;
+  if (!isShown('output')) setPanelVisible('output', true); // the result must be visible
+  runStatus.textContent = 'running…';
+  outputPane.classList.remove('stale');
+  try {
+    await parseNow(); // keep tokens/AST/type errors in sync with what is executed
+    localStorage.setItem('mydsl-stdin', stdinBox.value);
+    const response = await fetch('/api/run' + pathQuery(tab), { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: prefix + runRequestBody(text, stdinBox.value) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    applyRunResult({ ...await response.json(), unsaved }, tab);
+  } catch (e) {
+    runStatus.textContent = 'server unreachable';
+    outputBox.textContent = `Cannot reach the mydsl server (${e.message}). Is "./mydsl --serve" still running?`;
+  } finally {
+    runButton.disabled = false;
+  }
+}
+runButton.addEventListener('click', runNow);
+stdinBox.addEventListener('input', () => { if (runStatus.textContent) outputPane.classList.add('stale'); });
+stdinBox.value = localStorage.getItem('mydsl-stdin') ?? '';
+
+// ---- completion symbols ---------------------------------------------------------------------
+// What the editor suggests, all taken from the C++ side: the keywords, types and builtins of
+// /api/language; the functions the program can call (its own and those of imported modules,
+// "functions" of /api/parse); the variables, loop variables and parameters declared in the AST;
+// and, so that code which does not parse yet still completes, every word the lexer produced.
+// While the text has a syntax error the declarations come from the last parse that had an AST.
+fetch('/api/language').then(r => r.json()).then(data => { language = data; }).catch(() => {});
+function symbols() {
+  const out = [], seen = new Set();
+  const add = symbol => { if (!seen.has(symbol.label)) { seen.add(symbol.label); out.push(symbol); } };
+  const parsed = result && result.ast ? result : lastParsed;
+  for (const f of (parsed && parsed.functions) || []) {
+    add({ label: f.name, kind: 'function', params: f.params.map(p => p.name), detail: `(${f.params.map(p => `${p.type} ${p.name}`).join(', ')}) → ${f.returns}`,
+          info: f.file ? `Function from '${f.file}' (line ${f.line}).` : `Function defined at line ${f.line}.` });
+  }
+  const walk = statements => {
+    for (const s of statements || []) {
+      if (s.op === 'declare') add({ label: s.name, kind: 'variable', detail: s.declaration, info: `Variable declared at line ${s.location.line}.` });
+      else if (s.op === 'for') add({ label: s.name, kind: 'variable', detail: 'int', info: `Loop variable of the for at line ${s.location.line}.` });
+      else if (s.op === 'function') for (const p of s.params || []) add({ label: p.name, kind: 'parameter', detail: p.declaration, info: `Parameter of ${s.name} (line ${s.location.line}).` });
+      walk(s.body);
+    }
+  };
+  walk(parsed && parsed.ast);
+  for (const k of (language && language.keywords) || [])
+    add({ label: k.name, kind: k.kind === 'type' ? 'type' : k.kind === 'constant' ? 'constant' : 'keyword', template: k.detail, info: k.description });
+  for (const b of (language && language.builtins) || [])
+    add({ label: b.name, kind: 'builtin', signature: b.signature, detail: b.detail, info: b.description });
+  for (const t of (result && result.tokens) || []) if (t.kind === 'word') add({ label: t.text, kind: 'name', fromTokens: true });
+  return out;
+}
+
+// ---- the editor ----------------------------------------------------------------------------
+// Created once everything it calls back into exists. Ctrl+Enter parses and Ctrl+Shift+Enter
+// runs from inside the editor; undo/redo, find/replace, indentation and bracket matching are
+// the editor's own (web/editor/src/main.js).
+sourceText = localStorage.getItem('mydsl-source') ?? DEFAULT_SOURCE;
+editor = window.MyDSLEditor.create({ parent: $('editor'), doc: sourceText, onChange: sourceChanged, onCursor: trackCursor, onParse: parseImmediately, onRun: runNow, onSave: saveActive, completions: symbols });
+{ const fallback = $('editor').querySelector('.fallback'); if (fallback) fallback.remove(); } // only shown when the script is missing
+
+// ---- files and tabs -------------------------------------------------------------------------
+// The project is the directory the server was started in: GET /api/files lists its .mydsl and
+// .txt files, GET/PUT /api/file read and save one (src/project.cpp refuses anything outside
+// that directory). Every open file is a tab with its own editor state (undo history, cursor);
+// the "Scratch" tab is the browser-only buffer of before (kept in localStorage, never saved to
+// disk). A tab is dirty when its text differs from what was last read from or written to
+// disk (● in the tab and the tree, "●" in the title); closing a dirty tab or switching the
+// project folder asks first, and leaving the page with unsaved work triggers the browser's
+// warning. The session (open tabs, unsaved texts, active tab, folder) is kept in localStorage,
+// so a reload restores it; a file that changed on disk meanwhile is flagged as a conflict.
+const tabsBar = $('tabs'), filesTree = $('files-tree'), filesNote = $('files-note'), folderSelect = $('project-folder'), fileStatus = $('file-status'), saveButton = $('save');
+const tabs = [{ id: 'scratch', kind: 'scratch', name: 'Scratch', path: null, content: sourceText, saved: null, writable: true, state: null }];
+let activeTab = tabs[0];
+let project = { root: '', entries: [], folder: '' }; // from /api/files; folder = the subfolder shown ("" = all)
+const scratchTab = () => tabs[0];
+const isDirty = tab => tab.kind === 'file' && tab.content !== tab.saved;
+const anyDirty = () => tabs.some(isDirty);
+const dirtyFiles = () => tabs.filter(isDirty);
+const fileName = path => path.slice(path.lastIndexOf('/') + 1);
+const pathQuery = (tab = activeTab) => tab && tab.kind === 'file' ? `?path=${encodeURIComponent(tab.path)}` : '';
+// The "#files" prefix of a parse/run body: the unsaved texts of the other open files, so that
+// imports see what the editor shows instead of the files on disk (src/server.cpp).
+function overlayPrefix(except) {
+  const files = dirtyFiles().filter(tab => tab !== except);
+  if (!files.length) return '';
+  const bytes = text => new TextEncoder().encode(text).length;
+  return `#files ${files.length}\n` + files.map(tab => `${bytes(tab.path)} ${bytes(tab.content)}\n${tab.path}${tab.content}`).join('');
+}
+const fileHeaders = { 'X-Requested-With': 'mydsl' };
+
+function setFileStatus(text, cls) { fileStatus.textContent = text; fileStatus.className = 'count ' + (cls || ''); }
+// The standing note for a tab: read-only, or changed on disk behind unsaved edits.
+function showTabStatus(tab) {
+  if (tab.conflict) setFileStatus(`${tab.path} changed on disk since your unsaved edits; saving overwrites it`, 'error');
+  else setFileStatus(tab.writable === false ? 'read-only' : '', '');
+}
+function updateDirtyChrome() {
+  renderTabs();
+  renderTree();
+  saveButton.disabled = !(activeTab.kind === 'file' && isDirty(activeTab) && activeTab.writable !== false);
+  saveButton.title = activeTab.kind === 'scratch' ? 'The Scratch tab lives in the browser only; open a file from the Files panel to save to disk'
+                   : activeTab.writable === false ? `${activeTab.path} is read-only on disk` : 'Ctrl+S: write the active file back to disk';
+  document.title = (anyDirty() ? '● ' : '') + (activeTab.kind === 'file' ? `${fileName(activeTab.path)} - ` : '') + 'MyDSL debug view';
+  $('source-path').textContent = activeTab.kind === 'file' ? activeTab.path + (isDirty(activeTab) ? ' ●' : '') : 'Scratch (browser only)';
+}
+// An edit in the editor (called from sourceChanged).
+function textEdited() {
+  activeTab.content = sourceText;
+  activeTab.editedAt = ++editSerial;
+  if (activeTab.kind === 'file' && fileStatus.classList.contains('ok')) setFileStatus('', '');
+  updateDirtyChrome();
+  saveSession();
+}
+
+// --- tabs
+function renderTabs() {
+  tabsBar.innerHTML = '';
+  for (const tab of tabs) {
+    const el = document.createElement('div');
+    el.className = 'tab' + (tab === activeTab ? ' active' : '') + (isDirty(tab) ? ' dirty' : '') + (tab.writable === false ? ' readonly' : '') + (tab.conflict ? ' conflict' : '');
+    el.title = tab.kind === 'scratch' ? 'Scratch: a buffer kept in the browser, not a file' :
+               tab.path + (isDirty(tab) ? ' (unsaved changes)' : '') + (tab.writable === false ? ' (read-only)' : '') + (tab.conflict ? ' - changed on disk since you edited it' : '');
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = tab.name;
+    el.appendChild(name);
+    if (tab.kind === 'file') {
+      const close = document.createElement('button');
+      close.className = 'close'; close.textContent = '×'; close.title = 'Close';
+      close.addEventListener('click', ev => { ev.stopPropagation(); closeTab(tab); });
+      el.appendChild(close);
+    }
+    el.addEventListener('click', () => activateTab(tab));
+    tab.element = el;
+    tabsBar.appendChild(el);
+  }
+}
+// Shows `tab` in the editor: the previous tab keeps its editor state, the new one gets its own
+// (created on first use), and the page re-parses the new text.
+function activateTab(tab) {
+  if (tab === activeTab) return;
+  activeTab.state = editor.getState();
+  activeTab.content = editor.getValue();
+  activeTab = tab;
+  if (!tab.state) tab.state = editor.createState(tab.content ?? '', tab.writable === false);
+  editor.setState(tab.state);
+  sourceText = editor.getValue();
+  lineStarts = computeLineStarts(sourceText);
+  selection = null; result = null; lastParsed = null;
+  showError(null); // the banner belongs to the previous tab's parse; the new parse follows
+  showTabStatus(tab);
+  if (runStatus.textContent) outputPane.classList.add('stale');
+  updateDirtyChrome();
+  saveSession();
+  parseImmediately();
+  trackCursor();
+}
+function closeTab(tab) {
+  if (tab.kind !== 'file') return;
+  if (isDirty(tab) && !window.confirm(`Close ${tab.path} and discard its unsaved changes?`)) return;
+  const index = tabs.indexOf(tab);
+  tabs.splice(index, 1);
+  if (tab === activeTab) activateTab(tabs[Math.min(index, tabs.length - 1)]);
+  else { updateDirtyChrome(); saveSession(); }
+}
+// Opens a project file in a tab (switching to it if it is already open).
+async function openFile(path) {
+  const open = tabs.find(tab => tab.path === path);
+  if (open) { activateTab(open); return open; }
+  setFileStatus(`opening ${path}…`, '');
+  let data;
+  try {
+    const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`, { headers: fileHeaders });
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  } catch (e) { setFileStatus(`Cannot open ${path}: ${e.message}`, 'error'); return null; }
+  return openFileContent(data);
+}
+// The second half of openFile (what the tests call directly): adds the tab for a loaded file.
+function openFileContent({ path, content, writable }, { activate = true, unsaved = null, conflict = false } = {}) {
+  const existing = tabs.find(tab => tab.path === path);
+  if (existing) { if (activate) activateTab(existing); return existing; }
+  const tab = { id: path, kind: 'file', name: fileName(path), path, content: unsaved ?? content, saved: content, writable, state: null, conflict };
+  tabs.push(tab);
+  if (activate) activateTab(tab); else { updateDirtyChrome(); saveSession(); }
+  if (tab === activeTab) showTabStatus(tab);
+  return tab;
+}
+// Saves the active file (Ctrl+S, the Save button).
+async function saveActive() {
+  const tab = activeTab;
+  if (tab.kind !== 'file') { setFileStatus('the Scratch tab is not a file: open one from the Files panel to save to disk', ''); return false; }
+  if (tab.writable === false) { setFileStatus(`${tab.path} is read-only on disk`, 'error'); return false; }
+  if (!isDirty(tab)) { setFileStatus('no changes to save', ''); return true; }
+  const content = tab.content;
+  setFileStatus(`saving ${tab.path}…`, '');
+  try {
+    const response = await fetch(`/api/file?path=${encodeURIComponent(tab.path)}`, { method: 'PUT', headers: { ...fileHeaders, 'Content-Type': 'text/plain; charset=utf-8' }, body: content });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  } catch (e) { setFileStatus(`Cannot save ${tab.path}: ${e.message}`, 'error'); return false; }
+  markSaved(tab, content);
+  return true;
+}
+// After a successful write (what the tests call directly): the saved text is `content`.
+function markSaved(tab, content) {
+  tab.saved = content;
+  tab.conflict = false;
+  if (tab === activeTab) setFileStatus(`saved ${new Date().toLocaleTimeString()}`, 'ok');
+  if (tab.element) tab.element.classList.remove('conflict');
+  updateDirtyChrome();
+  saveSession();
+}
+saveButton.addEventListener('click', saveActive);
+// The page's shortcuts when the focus is outside the editor (Input box, tree, buttons): Ctrl/Cmd+S
+// saves, Ctrl/Cmd+Enter parses, Ctrl/Cmd+Shift+Enter runs. Inside the editor CodeMirror handles
+// them first and marks the event as handled (defaultPrevented), so nothing runs twice.
+document.addEventListener('keydown', ev => {
+  if (ev.defaultPrevented || !(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+  if (!ev.shiftKey && ev.key.toLowerCase() === 's') { ev.preventDefault(); saveActive(); }
+  else if (ev.key === 'Enter') { ev.preventDefault(); if (ev.shiftKey) runNow(); else parseImmediately(); }
+});
+window.addEventListener('beforeunload', ev => { if (anyDirty()) { ev.preventDefault(); ev.returnValue = ''; } });
+
+// --- the project tree
+function renderTree() {
+  filesTree.innerHTML = '';
+  const shown = project.entries.filter(e => !project.folder || e.path === project.folder || e.path.startsWith(project.folder + '/'));
+  const directories = new Map([['', filesTree]]);
+  const container = path => {
+    const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+    return directories.get(parent) || directories.get(project.folder) || filesTree;
+  };
+  for (const entry of shown) {
+    if (entry.dir) {
+      if (entry.path === project.folder) { directories.set(entry.path, filesTree); continue; }
+      const details = document.createElement('details');
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = fileName(entry.path);
+      details.appendChild(summary);
+      container(entry.path).appendChild(details);
+      directories.set(entry.path, details);
+    } else {
+      const tab = tabs.find(t => t.path === entry.path);
+      const el = document.createElement('div');
+      el.className = 'file' + (tab ? ' open' : '') + (tab === activeTab ? ' active' : '') + (tab && isDirty(tab) ? ' dirty' : '') + (entry.writable === false ? ' readonly' : '');
+      el.textContent = fileName(entry.path);
+      el.title = entry.path + (entry.writable === false ? ' (read-only)' : '');
+      el.addEventListener('click', () => openFile(entry.path));
+      container(entry.path).appendChild(el);
+    }
+  }
+  const files = shown.filter(e => !e.dir).length;
+  filesNote.textContent = !project.root ? 'The file list comes from the mydsl server: the .mydsl and .txt files below the directory it was started in.' :
+                          files ? `${files} file${files === 1 ? '' : 's'}${project.truncated ? ' (list truncated)' : ''}` : 'No .mydsl or .txt files here.';
+}
+function renderFolderSelect() {
+  folderSelect.innerHTML = '';
+  const rootName = project.root ? fileName(project.root) || project.root : '(server directory)';
+  const add = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; if (value === project.folder) o.selected = true; folderSelect.appendChild(o); };
+  add('', rootName + '/');
+  for (const entry of project.entries) if (entry.dir) add(entry.path, entry.path + '/');
+}
+// Switches the project folder: the open files belong to the old one and are closed (after a warning when unsaved).
+function setFolder(folder) {
+  if (folder === project.folder) return;
+  if (dirtyFiles().length && !window.confirm(`Switch to ${folder || 'the top folder'} and discard the unsaved changes in ${dirtyFiles().map(t => t.path).join(', ')}?`)) {
+    renderFolderSelect(); return;
+  }
+  project.folder = folder;
+  for (const tab of tabs.filter(t => t.kind === 'file')) tabs.splice(tabs.indexOf(tab), 1);
+  if (activeTab.kind === 'file') activateTab(scratchTab());
+  localStorage.setItem('mydsl-folder', folder);
+  renderFolderSelect(); updateDirtyChrome(); saveSession();
+}
+folderSelect.addEventListener('change', ev => setFolder(ev.target.value));
+// Loads the tree (what the tests feed through applyProject).
+async function loadProject() {
+  try {
+    const response = await fetch('/api/files', { headers: fileHeaders });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    applyProject(data);
+  } catch (e) { filesNote.textContent = `Cannot list the project files: ${e.message}`; }
+}
+function applyProject(data) {
+  project = { root: data.root, entries: data.entries, truncated: data.truncated, folder: project.folder };
+  if (project.folder && !project.entries.some(e => e.dir && e.path === project.folder)) project.folder = '';
+  $('files-root').textContent = project.root; $('files-root').title = `Files below ${project.root} (the directory the server was started in)`;
+  renderFolderSelect();
+  renderTree();
+}
+$('files-refresh').addEventListener('click', loadProject);
+
+// --- the session: reload restores the open tabs, the unsaved texts and the active tab
+function saveSession() {
+  const session = { active: activeTab.id, folder: project.folder,
+                    tabs: tabs.filter(t => t.kind === 'file').map(t => isDirty(t) ? { path: t.path, content: t.content, saved: t.saved } : { path: t.path }) };
+  localStorage.setItem('mydsl-session', JSON.stringify(session));
+}
+async function restoreSession() {
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem('mydsl-session') || 'null'); } catch (e) { /* corrupt entry: ignore */ }
+  project.folder = localStorage.getItem('mydsl-folder') || '';
+  await loadProject();
+  if (!session || !session.tabs) return;
+  for (const stored of session.tabs) {
+    let data = null;
+    try {
+      const response = await fetch(`/api/file?path=${encodeURIComponent(stored.path)}`, { headers: fileHeaders });
+      data = await response.json();
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    } catch (e) {
+      if (stored.content === undefined) { setFileStatus(`${stored.path} could not be reopened: ${e.message}`, 'error'); continue; }
+      data = { path: stored.path, content: null, writable: true }; // gone from disk: keep the unsaved text
+    }
+    const unsaved = stored.content !== undefined ? stored.content : null;
+    const conflict = unsaved !== null && data.content !== null && stored.saved !== undefined && data.content !== stored.saved;
+    openFileContent(data, { activate: false, unsaved, conflict });
+  }
+  const active = tabs.find(t => t.id === session.active);
+  if (active) activateTab(active);
+  updateDirtyChrome();
+}
+updateDirtyChrome();
+restoreSession();
+
+// ---- themes --------------------------------------------------------------------------------
+// One palette for the page (CSS variables on :root) and the editor (web/editor/src/themes.js).
+// "auto" follows the operating system's light/dark preference. Kept in localStorage.
+const themeSelect = $('theme');
+const THEME_VARIABLES = { bg: '--bg', panel: '--panel', panelAlt: '--panel-alt', border: '--border', text: '--text', muted: '--muted', accent: '--accent', accentBg: '--accent-bg',
+                          hover: '--hover', error: '--error', errorBg: '--error-bg', errorBorder: '--error-border', ok: '--ok', okBg: '--ok-bg', warn: '--warn', warnBg: '--warn-bg',
+                          cursorBg: '--cursor-bg', rowBorder: '--row-border', buttonBg: '--button-bg', input: '--input-bg', status: '--status-bg', statusFg: '--status-fg', shadow: '--shadow', okFg: '--ok-fg' };
+const SYNTAX_VARIABLES = { keyword: '--kw', type: '--type', builtin: '--builtin', number: '--number', string: '--string', comment: '--comment', variable: '--variable', trace: '--trace' };
+let themeChoice = localStorage.getItem('mydsl-theme') || 'auto';
+const darkPreferred = () => !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+const effectiveTheme = choice => choice === 'auto' ? (darkPreferred() ? 'dark-modern' : 'light') : choice;
+function applyTheme(choice) {
+  themeChoice = choice;
+  const theme = window.MyDSLEditor.resolveTheme(effectiveTheme(choice));
+  const root = document.documentElement.style;
+  for (const [key, variable] of Object.entries(THEME_VARIABLES)) if (theme.ui[key]) root.setProperty(variable, theme.ui[key]);
+  for (const [key, variable] of Object.entries(SYNTAX_VARIABLES)) if (theme.syntax[key]) root.setProperty(variable, theme.syntax[key]);
+  root.setProperty('color-scheme', theme.dark ? 'dark' : 'light');
+  editor.setTheme(theme.id);
+  localStorage.setItem('mydsl-theme', choice);
+  themeSelect.value = choice;
+  themeSelect.title = `Colour theme: ${theme.name}${choice === 'auto' ? ' (following the system setting)' : ''}`;
+}
+{
+  const option = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; themeSelect.appendChild(o); };
+  option('auto', 'Auto (system)');
+  for (const theme of window.MyDSLEditor.themes.filter(th => !th.dark)) option(theme.id, theme.name);
+  for (const theme of window.MyDSLEditor.themes.filter(th => th.dark)) option(theme.id, theme.name);
+  themeSelect.addEventListener('change', ev => applyTheme(ev.target.value));
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themeChoice === 'auto') applyTheme('auto'); });
+  applyTheme(themeChoice);
+}
+
+// ---- layout: show/hide panels, drag the gutters to resize ----------------------------------
+// Kept in localStorage under 'mydsl-layout': {output, tokens, ast: bool, <key>: px for each gutter}.
+const LAYOUT_DEFAULTS = { files: true, output: true, tokens: false, ast: true };
+let layout = { ...LAYOUT_DEFAULTS };
+try { layout = { ...LAYOUT_DEFAULTS, ...JSON.parse(localStorage.getItem('mydsl-layout') || '{}') }; } catch (e) { /* corrupt entry: defaults */ }
+function saveLayout() { localStorage.setItem('mydsl-layout', JSON.stringify(layout)); }
+const panels = {
+  files: { pane: $('files-pane'), button: $('toggle-files'), hide: $('hide-files') },
+  output: { pane: $('output-pane'), button: $('toggle-output'), hide: $('hide-output') },
+  tokens: { pane: $('tokens-pane'), button: $('toggle-tokens'), hide: $('hide-tokens') },
+  ast: { pane: $('ast-pane'), button: $('toggle-ast'), hide: $('hide-ast') },
+};
+const sidebar = $('sidebar'), gutterSidebar = $('gutter-sidebar'), gutterAst = $('gutter-ast'), gutterOutput = $('gutter-output');
+const isShown = name => layout[name] !== false;
+function setPanelVisible(name, visible) {
+  layout[name] = !!visible;
+  const { pane, button } = panels[name];
+  pane.hidden = !visible;
+  button.classList[visible ? 'add' : 'remove']('on');
+  button.setAttribute('aria-pressed', String(!!visible));
+  const tokens = isShown('tokens'), ast = isShown('ast');
+  sidebar.hidden = gutterSidebar.hidden = !(tokens || ast); // nothing to show: the editor takes the full width
+  gutterAst.hidden = !(tokens && ast);
+  panels.tokens.pane.classList[tokens && !ast ? 'add' : 'remove']('fill');
+  gutterOutput.hidden = !isShown('output');
+  $('gutter-files').hidden = !isShown('files');
+  saveLayout();
+  if (visible) trackCursor(); // a panel that was hidden did not scroll to the token/node under the cursor
+}
+for (const name of Object.keys(panels)) {
+  panels[name].button.addEventListener('click', () => setPanelVisible(name, !isShown(name)));
+  panels[name].hide.addEventListener('click', () => setPanelVisible(name, false));
+  setPanelVisible(name, isShown(name));
+}
+// A gutter drags the flex-basis of `pane` (the panel on its right or below it when `reverse`,
+// i.e. the panel grows when the gutter moves towards the editor). Double-click restores the CSS default.
+function makeSplitter(gutter, pane, { axis, reverse = false, key, min, reserve }) {
+  const extent = rect => axis === 'x' ? rect.width : rect.height;
+  const measure = () => extent(pane.getBoundingClientRect());
+  const apply = px => { pane.style.flexBasis = px === null ? '' : `${Math.round(px)}px`; };
+  if (typeof layout[key] === 'number') apply(layout[key]);
+  gutter.addEventListener('pointerdown', ev => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    const origin = axis === 'x' ? ev.clientX : ev.clientY, start = measure();
+    const max = Math.max(min, extent(pane.parentElement.getBoundingClientRect()) - reserve); // leave the neighbour its minimum
+    const move = e => { const delta = (axis === 'x' ? e.clientX : e.clientY) - origin; apply(Math.min(max, Math.max(min, start + (reverse ? -delta : delta)))); };
+    const stop = () => {
+      gutter.removeEventListener('pointermove', move); gutter.removeEventListener('pointerup', stop); gutter.removeEventListener('pointercancel', stop);
+      gutter.classList.remove('active'); document.body.classList.remove(`resizing-${axis}`);
+      layout[key] = Math.round(measure()); saveLayout();
+    };
+    gutter.setPointerCapture(ev.pointerId);
+    gutter.classList.add('active'); document.body.classList.add(`resizing-${axis}`);
+    gutter.addEventListener('pointermove', move); gutter.addEventListener('pointerup', stop); gutter.addEventListener('pointercancel', stop);
+  });
+  gutter.addEventListener('dblclick', () => { apply(null); delete layout[key]; saveLayout(); });
+}
+makeSplitter(gutterSidebar, sidebar, { axis: 'x', reverse: true, key: 'sidebarWidth', min: 240, reserve: 320 + 8 });
+makeSplitter($('gutter-files'), panels.files.pane, { axis: 'x', key: 'filesWidth', min: 160, reserve: 320 + 8 });
+makeSplitter(gutterOutput, panels.output.pane, { axis: 'y', reverse: true, key: 'outputHeight', min: 150, reserve: 120 + 8 });
+makeSplitter(gutterAst, panels.tokens.pane, { axis: 'y', key: 'tokensHeight', min: 80, reserve: 80 + 8 });
+makeSplitter($('gutter-variables'), $('variables-col'), { axis: 'x', reverse: true, key: 'variablesWidth', min: 160, reserve: 160 + 8 });
+
+// Exposed for the browser console and for tests/web.test.js (which runs this script in Node).
+window.mydslDebug = {
+  computeLineStarts, offsetOf, lineOf, children, deepest, applyResult, applyRunResult, runRequestBody, renderMarks, marks, trackCursor,
+  setSource(text) { editor.setValue(text); sourceText = text; lineStarts = computeLineStarts(text); textEdited(); },
+  editor: () => editor, symbols, setLanguage(data) { language = data; },
+  tabs: () => tabs, activeTab: () => activeTab, activateTab, closeTab, openFileContent, markSaved, saveActive, applyProject, setFolder, isDirty, anyDirty, saveSession, restoreSession, pathQuery, overlayPrefix, goTo, computeMarks, lastRun: () => lastRun,
+  applyTheme, theme: () => ({ choice: themeChoice, effective: effectiveTheme(themeChoice) }),
+  state: () => ({ result, selection, errorOffset, traceOffsets, lineStarts }),
+  layout: () => ({ ...layout }), setPanelVisible, isShown,
+};
+
+lineStarts = computeLineStarts(sourceText);
+parseNow();
+</script>
+</body>
+</html>

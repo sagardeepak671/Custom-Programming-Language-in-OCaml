@@ -1,0 +1,2 @@
+{ int hidden := 1; };
+Print(hidden);

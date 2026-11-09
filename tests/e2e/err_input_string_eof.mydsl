@@ -1,0 +1,4 @@
+string first := Input();
+Print(first);
+string second := Input();
+Print(second);

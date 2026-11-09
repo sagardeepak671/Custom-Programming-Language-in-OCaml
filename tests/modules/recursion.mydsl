@@ -1,0 +1,5 @@
+import "lib/recursion.mydsl";
+Print(factorial(5));
+Print(is_even(10));
+Print(is_odd(10));
+Print(sum_of_squares(3));

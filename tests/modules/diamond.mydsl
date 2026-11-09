@@ -1,0 +1,10 @@
+// vectors.mydsl is reachable through stats -> math_utils -> vectors and directly: it is
+// loaded once, and importing it here is not a duplicate (it is a different module's import).
+import "lib/stats.mydsl";
+import "lib/vectors.mydsl";
+import "lib/strings.mydsl";
+function float total(floatvector 3 v) {
+    return norm(v) + variance(v);
+};
+Print(greet("modules"));
+Print(total([1.0, 2.0, 3.0]));

@@ -1,0 +1,13 @@
+// Values of several types read in sequence from standard input (input_stdin.in).
+int n := Input();
+floatvector 3 v := Input();
+float scale := Input();
+bool flag := Input();
+Print(n * 2);                  // 6
+Print(v * scale);              // [3.0, -4.0, 1.0]
+Print(flag);                   // true
+intmatrix 2,2 m := Input();
+Print(determinant(m));         // 4 - 6 = -2
+int total := 0;
+for (i := 0, i < n, 1) { int x := Input(); total := total + x; };
+Print(total);                  // 60

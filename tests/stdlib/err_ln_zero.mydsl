@@ -1,0 +1,2 @@
+import "../../stdlib/fmath.mydsl";
+Print(ln_f(0.0));
