@@ -4,6 +4,11 @@ A small programming language implemented in C++17 with scalar values, strings, v
 matrices, control flow, runtime input and user-defined functions. See `REVIEW.md` for the review of the
 core pipeline: what was checked, the results and the known limitations.
 
+**Editor Demo:** [https://sagardeepak671.github.io/Custom-Programming-Language-in-OCaml/](https://sagardeepak671.github.io/Custom-Programming-Language-in-OCaml/)
+
+The deployed editor shell requires the native `mydsl --serve` backend for parsing and execution; the
+GitHub Pages version provides the browser editor assets but cannot run the C++ backend.
+
 ## Current status
 
 The tokenizer works and reports token kinds and source locations. The parser is complete: it
